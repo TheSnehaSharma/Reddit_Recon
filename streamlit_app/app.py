@@ -7,8 +7,16 @@ from databricks import sql
 import os
 from datetime import datetime, timedelta
 import calendar
-from wordcloud import WordCloud
-import matplotlib.pyplot as plt
+# Optional wordcloud import - app works without it
+try:
+    from wordcloud import WordCloud
+    import matplotlib.pyplot as plt
+    WORDCLOUD_AVAILABLE = True
+except ImportError:
+    WORDCLOUD_AVAILABLE = False
+    WordCloud = None
+    plt = None
+
 import numpy as np
 
 # ================================
