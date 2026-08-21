@@ -1,0 +1,26 @@
+# dbt Profiles Configuration for Databricks
+# Place this file in ~/.dbt/profiles.yml or specify with --profiles-dir
+
+reddit_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: databricks
+      method: token
+      # Update these values with your Databricks workspace details
+      host: dbc-bb32dba0-320f.cloud.databricks.com
+      http_path: /sql/1.0/warehouses/YOUR_WAREHOUSE_ID  # Get from SQL Warehouse details
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"  # Set as environment variable
+      catalog: workspace
+      schema: redditrecon
+      threads: 4
+      
+    prod:
+      type: databricks
+      method: token
+      host: dbc-bb32dba0-320f.cloud.databricks.com
+      http_path: /sql/1.0/warehouses/YOUR_WAREHOUSE_ID
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      catalog: workspace
+      schema: redditrecon
+      threads: 8

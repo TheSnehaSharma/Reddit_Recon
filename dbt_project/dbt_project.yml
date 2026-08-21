@@ -1,0 +1,43 @@
+# dbt Project Configuration for Reddit Analytics
+name: 'reddit_analytics'
+version: '1.0.0'
+config-version: 2
+
+# Project profile (references profiles.yml)
+profile: 'reddit_analytics'
+
+# Model paths
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+# Clean targets
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Model configurations
+models:
+  reddit_analytics:
+    # Materialized views for aggregated metrics
+    marts:
+      +materialized: view
+      +schema: analytics
+      # Materialized views
+      materialized_views:
+        +materialized: materialized_view
+        +schema: analytics
+    
+    # Staging models (just references)
+    staging:
+      +materialized: view
+      +schema: staging
+
+vars:
+  # Source table configuration
+  gold_table: 'workspace.redditrecon.posts_gold'
+  catalog: 'workspace'
+  schema: 'redditrecon'
