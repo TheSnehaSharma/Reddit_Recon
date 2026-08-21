@@ -2,141 +2,107 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from databricks import sql
 import os
 from datetime import datetime, timedelta
 import calendar
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+import numpy as np
 
 # ================================
-# REDDIT STYLING & CONFIGURATION
+# PAGE CONFIGURATION
 # ================================
 
-# Reddit color scheme
-REDDIT_ORANGE = "#FF4500"
-REDDIT_BLUE = "#5f99cf"
-REDDIT_DARK = "#1c1c1c"
-REDDIT_LIGHT = "#f6f7f8"
-REDDIT_UPVOTE = "#FF8b60"
-REDDIT_DOWNVOTE = "#9494FF"
-
-# Page configuration
 st.set_page_config(
-    page_title="Reddit Recon Analytics",
-    page_icon="🔍",
+    page_title="Reddit Recon | Analytics Dashboard",
+    page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for Reddit-style theme
+# ================================
+# REDDIT THEME & STYLING
+# ================================
+
+REDDIT_ORANGE = "#FF4500"
+REDDIT_BLUE = "#0079D3"
+REDDIT_DARK = "#1A1A1B"
+REDDIT_LIGHT = "#DAE0E6"
+
 st.markdown("""
 <style>
-    /* Main theme colors */
-    :root {
-        --reddit-orange: #FF4500;
-        --reddit-blue: #5f99cf;
-        --reddit-dark: #1c1c1c;
+    .main {
+        background-color: #DAE0E6;
     }
     
-    /* Header styling */
-    .main-header {
+    .navbar {
         background: linear-gradient(90deg, #FF4500 0%, #FF6B35 100%);
-        padding: 2rem;
-        border-radius: 10px;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 1rem 2rem;
+        margin: -1rem -1rem 2rem -1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    .main-header h1 {
+    .navbar-content {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .navbar-logo {
+        font-size: 2rem;
+    }
+    
+    .navbar-title {
         color: white;
-        font-size: 2.5rem;
+        font-size: 1.8rem;
         font-weight: 700;
         margin: 0;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
     }
     
-    .main-header p {
-        color: #ffffff;
-        font-size: 1.1rem;
-        margin-top: 0.5rem;
-        opacity: 0.95;
-    }
-    
-    /* Metric cards */
-    .metric-card {
+    .section-header {
         background: white;
         padding: 1.5rem;
         border-radius: 8px;
-        border-left: 4px solid #FF4500;
+        border-left: 5px solid #FF4500;
+        margin: 1rem 0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-        margin: 0.5rem 0;
     }
     
-    /* Subreddit pill */
-    .subreddit-pill {
-        background: #FF4500;
-        color: white;
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        display: inline-block;
-        margin: 0.2rem;
+    .section-header h2 {
+        color: #1A1A1B;
+        margin: 0;
+        font-size: 1.5rem;
     }
     
-    /* Score badge */
-    .score-badge {
-        background: linear-gradient(135deg, #FF8b60 0%, #FF4500 100%);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 25px;
-        font-weight: bold;
-        font-size: 1.1rem;
-        display: inline-block;
-        box-shadow: 0 2px 8px rgba(255,69,0,0.3);
-    }
-    
-    /* Sentiment badges */
-    .sentiment-positive {
-        background: #46d160;
-        color: white;
-        padding: 0.3rem 0.8rem;
-        border-radius: 15px;
-        font-weight: 600;
-    }
-    
-    .sentiment-negative {
-        background: #ff4757;
-        color: white;
-        padding: 0.3rem 0.8rem;
-        border-radius: 15px;
-        font-weight: 600;
-    }
-    
-    .sentiment-neutral {
-        background: #747d8c;
-        color: white;
-        padding: 0.3rem 0.8rem;
-        border-radius: 15px;
-        font-weight: 600;
-    }
-    
-    /* Sidebar styling */
-    .css-1d391kg {  /* Sidebar */
-        background-color: #f6f7f8;
-    }
-    
-    /* Filter section */
-    .filter-section {
-        background: white;
-        padding: 1.5rem;
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2rem;
+        background-color: white;
+        padding: 1rem;
         border-radius: 8px;
-        margin-bottom: 1rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     
-    /* Data table styling */
-    .dataframe {
-        border: none !important;
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        padding: 0 2rem;
+        background-color: transparent;
+        border-radius: 4px;
+        color: #1A1A1B;
+        font-weight: 600;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background-color: #FF4500;
+        color: white;
+    }
+    
+    div[data-testid="metric-container"] {
+        background-color: white;
+        border: 1px solid #DAE0E6;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     
     .dataframe th {
@@ -146,38 +112,23 @@ st.markdown("""
         padding: 12px !important;
     }
     
-    .dataframe td {
-        padding: 10px !important;
+    .stButton button {
+        background-color: #FF4500;
+        color: white;
+        border: none;
+        border-radius: 20px;
+        padding: 0.5rem 2rem;
+        font-weight: 600;
     }
     
-    /* Chart container */
-    .chart-container {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-        margin: 1rem 0;
-    }
-    
-    /* Info box */
-    .info-box {
-        background: #e3f2fd;
-        border-left: 4px solid #2196f3;
-        padding: 1rem;
-        border-radius: 4px;
-        margin: 1rem 0;
-    }
-    
-    /* Warning box */
-    .warning-box {
-        background: #fff3e0;
-        border-left: 4px solid #ff9800;
-        padding: 1rem;
-        border-radius: 4px;
-        margin: 1rem 0;
+    .stButton button:hover {
+        background-color: #FF6B35;
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Save for next chunk
+print("Part 1/3 written")
 
 # ================================
 # DATABASE CONNECTION
@@ -194,10 +145,9 @@ def get_databricks_connection():
         )
     except Exception as e:
         st.error(f"❌ Database connection failed: {str(e)}")
-        st.info("📝 Make sure to set environment variables: DATABRICKS_SERVER_HOSTNAME, DATABRICKS_HTTP_PATH, DATABRICKS_TOKEN")
         return None
 
-@st.cache_data(ttl=300)  # Cache for 5 minutes
+@st.cache_data(ttl=300)
 def run_query(query):
     """Execute SQL query and return results as DataFrame."""
     conn = get_databricks_connection()
@@ -210,7 +160,7 @@ def run_query(query):
             cursor.close()
             return pd.DataFrame(result, columns=columns)
         except Exception as e:
-            st.error(f"❌ Query execution failed: {str(e)}")
+            st.error(f"❌ Query failed: {str(e)}")
             return pd.DataFrame()
     return pd.DataFrame()
 
@@ -219,7 +169,7 @@ def run_query(query):
 # ================================
 
 def get_available_dates():
-    """Get available date range from bronze table."""
+    """Get available date range."""
     query = """
     SELECT 
         MIN(DATE(created_at)) as min_date,
@@ -232,7 +182,7 @@ def get_available_dates():
     return None, None
 
 def get_available_subreddits():
-    """Get list of all subreddits."""
+    """Get list of subreddits."""
     query = """
     SELECT DISTINCT subreddit
     FROM workspace.Reddit_Recon.posts_bronze
@@ -242,61 +192,22 @@ def get_available_subreddits():
     df = run_query(query)
     return df['subreddit'].tolist() if not df.empty else []
 
-def check_gold_layer_available():
-    """Check if Gold layer (enriched data) is available."""
-    query = """
-    SHOW TABLES IN workspace.Reddit_Recon LIKE 'posts_gold'
-    """
+def check_gold_layer():
+    """Check if Gold layer exists."""
+    query = "SHOW TABLES IN workspace.Reddit_Recon LIKE 'posts_gold'"
     df = run_query(query)
     return not df.empty
 
-def get_filtered_data(start_date, end_date, selected_subreddits, use_gold=False):
-    """Get filtered Reddit posts data."""
-    table = "workspace.Reddit_Recon.posts_gold" if use_gold else "workspace.Reddit_Recon.posts_bronze"
-    
-    subreddit_filter = ""
-    if selected_subreddits:
-        subreddits_str = "','".join(selected_subreddits)
-        subreddit_filter = f"AND subreddit IN ('{subreddits_str}')"
-    
-    sentiment_cols = ", sentiment, sentiment_score" if use_gold else ""
-    emotion_cols = ", emotion, emotion_score" if use_gold else ""
-    topic_cols = ", topic, topic_score" if use_gold else ""
+def get_kpi_metrics(start_date, end_date, subreddits):
+    """Get KPI metrics."""
+    sub_filter = ""
+    if subreddits:
+        subs = "','".join(subreddits)
+        sub_filter = f"AND subreddit IN ('{subs}')"
     
     query = f"""
     SELECT 
-        id,
-        author,
-        subreddit,
-        title,
-        selftext,
-        score,
-        num_comments,
-        created_at,
-        DATE(created_at) as post_date,
-        url,
-        link_flair_text
-        {sentiment_cols}
-        {emotion_cols}
-        {topic_cols}
-    FROM {table}
-    WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'
-    {subreddit_filter}
-    ORDER BY created_at DESC
-    """
-    return run_query(query)
-
-def get_daily_metrics(start_date, end_date, selected_subreddits):
-    """Get daily aggregated metrics."""
-    subreddit_filter = ""
-    if selected_subreddits:
-        subreddits_str = "','".join(selected_subreddits)
-        subreddit_filter = f"AND subreddit IN ('{subreddits_str}')"
-    
-    query = f"""
-    SELECT 
-        DATE(created_at) as post_date,
-        COUNT(*) as post_count,
+        COUNT(*) as total_posts,
         SUM(score) as total_score,
         AVG(score) as avg_score,
         SUM(num_comments) as total_comments,
@@ -305,135 +216,259 @@ def get_daily_metrics(start_date, end_date, selected_subreddits):
         COUNT(DISTINCT author) as unique_authors
     FROM workspace.Reddit_Recon.posts_bronze
     WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'
-    {subreddit_filter}
-    GROUP BY DATE(created_at)
-    ORDER BY post_date
+    {sub_filter}
     """
     return run_query(query)
 
-def get_subreddit_metrics(start_date, end_date, selected_subreddits):
-    """Get metrics by subreddit."""
-    subreddit_filter = ""
-    if selected_subreddits:
-        subreddits_str = "','".join(selected_subreddits)
-        subreddit_filter = f"AND subreddit IN ('{subreddits_str}')"
-    
+def get_top_subreddits(start_date, end_date, limit=10):
+    """Get top subreddits by posts and score."""
     query = f"""
     SELECT 
         subreddit,
         COUNT(*) as post_count,
         SUM(score) as total_score,
-        AVG(score) as avg_score,
-        SUM(num_comments) as total_comments,
-        MAX(score) as max_score
+        AVG(score) as avg_score
     FROM workspace.Reddit_Recon.posts_bronze
     WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'
-    {subreddit_filter}
     GROUP BY subreddit
     ORDER BY total_score DESC
-    LIMIT 20
+    LIMIT {limit}
     """
     return run_query(query)
 
-def get_sentiment_distribution(start_date, end_date, selected_subreddits):
-    """Get sentiment distribution from Gold layer."""
-    subreddit_filter = ""
-    if selected_subreddits:
-        subreddits_str = "','".join(selected_subreddits)
-        subreddit_filter = f"AND subreddit IN ('{subreddits_str}')"
+def get_daily_trends(start_date, end_date, subreddits):
+    """Get daily trends."""
+    sub_filter = ""
+    if subreddits:
+        subs = "','".join(subreddits)
+        sub_filter = f"AND subreddit IN ('{subs}')"
+    
+    query = f"""
+    SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as posts,
+        SUM(score) as total_score,
+        AVG(score) as avg_score,
+        SUM(num_comments) as comments
+    FROM workspace.Reddit_Recon.posts_bronze
+    WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'
+    {sub_filter}
+    GROUP BY DATE(created_at)
+    ORDER BY date
+    """
+    return run_query(query)
+
+def get_sentiment_data(start_date, end_date, subreddits):
+    """Get sentiment analysis data."""
+    sub_filter = ""
+    if subreddits:
+        subs = "','".join(subreddits)
+        sub_filter = f"AND subreddit IN ('{subs}')"
     
     query = f"""
     SELECT 
         sentiment,
-        COUNT(*) as count,
-        AVG(sentiment_score) as avg_confidence
-    FROM workspace.Reddit_Recon.posts_gold
-    WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'
-    {subreddit_filter}
-    GROUP BY sentiment
-    ORDER BY count DESC
-    """
-    return run_query(query)
-
-def get_emotion_distribution(start_date, end_date, selected_subreddits):
-    """Get emotion distribution from Gold layer."""
-    subreddit_filter = ""
-    if selected_subreddits:
-        subreddits_str = "','".join(selected_subreddits)
-        subreddit_filter = f"AND subreddit IN ('{subreddits_str}')"
-    
-    query = f"""
-    SELECT 
         emotion,
-        COUNT(*) as count,
-        AVG(emotion_score) as avg_confidence
+        topic,
+        subreddit,
+        COUNT(*) as count
     FROM workspace.Reddit_Recon.posts_gold
     WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'
-    {subreddit_filter}
-    GROUP BY emotion
-    ORDER BY count DESC
+    {sub_filter}
+    GROUP BY sentiment, emotion, topic, subreddit
     """
     return run_query(query)
 
-def get_topic_distribution(start_date, end_date, selected_subreddits):
-    """Get topic distribution from Gold layer."""
-    subreddit_filter = ""
-    if selected_subreddits:
-        subreddits_str = "','".join(selected_subreddits)
-        subreddit_filter = f"AND subreddit IN ('{subreddits_str}')"
+def get_subreddit_sentiment_summary(start_date, end_date):
+    """Get dominant sentiment and emotion per subreddit."""
+    query = f"""
+    WITH sentiment_counts AS (
+        SELECT 
+            subreddit,
+            sentiment,
+            COUNT(*) as sent_count,
+            ROW_NUMBER() OVER (PARTITION BY subreddit ORDER BY COUNT(*) DESC) as sent_rank
+        FROM workspace.Reddit_Recon.posts_gold
+        WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'
+        GROUP BY subreddit, sentiment
+    ),
+    emotion_counts AS (
+        SELECT 
+            subreddit,
+            emotion,
+            COUNT(*) as emo_count,
+            ROW_NUMBER() OVER (PARTITION BY subreddit ORDER BY COUNT(*) DESC) as emo_rank
+        FROM workspace.Reddit_Recon.posts_gold
+        WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'
+        GROUP BY subreddit, emotion
+    )
+    SELECT 
+        s.subreddit,
+        s.sentiment as dominant_sentiment,
+        s.sent_count as sentiment_count,
+        e.emotion as dominant_emotion,
+        e.emo_count as emotion_count
+    FROM sentiment_counts s
+    JOIN emotion_counts e ON s.subreddit = e.subreddit
+    WHERE s.sent_rank = 1 AND e.emo_rank = 1
+    ORDER BY s.sent_count DESC
+    """
+    return run_query(query)
+
+def get_text_for_wordcloud(start_date, end_date, subreddit=None):
+    """Get text data for word cloud."""
+    sub_filter = f"AND subreddit = '{subreddit}'" if subreddit else ""
+    
+    query = f"""
+    SELECT title, selftext
+    FROM workspace.Reddit_Recon.posts_bronze
+    WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'
+    {sub_filter}
+    LIMIT 1000
+    """
+    return run_query(query)
+
+def get_raw_data(start_date, end_date, subreddits, sentiments, emotions, topics, sort_by, use_gold):
+    """Get raw data with filters."""
+    table = "workspace.Reddit_Recon.posts_gold" if use_gold else "workspace.Reddit_Recon.posts_bronze"
+    
+    filters = [f"DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'"]
+    
+    if subreddits:
+        subs = "','".join(subreddits)
+        filters.append(f"subreddit IN ('{subs}')")
+    
+    if use_gold:
+        if sentiments:
+            sents = "','".join(sentiments)
+            filters.append(f"sentiment IN ('{sents}')")
+        if emotions:
+            emos = "','".join(emotions)
+            filters.append(f"emotion IN ('{emos}')")
+        if topics:
+            tops = "','".join(topics)
+            filters.append(f"topic IN ('{tops}')")
+    
+    where_clause = " AND ".join(filters)
+    
+    gold_cols = ", sentiment, emotion, topic" if use_gold else ""
+    
+    sort_mapping = {
+        "Time (Newest)": "created_at DESC",
+        "Time (Oldest)": "created_at ASC",
+        "Score (High to Low)": "score DESC",
+        "Score (Low to High)": "score ASC",
+        "Comments (High to Low)": "num_comments DESC",
+        "Comments (Low to High)": "num_comments ASC"
+    }
     
     query = f"""
     SELECT 
-        topic,
-        COUNT(*) as count,
-        AVG(topic_score) as avg_confidence
-    FROM workspace.Reddit_Recon.posts_gold
-    WHERE DATE(created_at) BETWEEN '{start_date}' AND '{end_date}'
-    {subreddit_filter}
-    GROUP BY topic
-    ORDER BY count DESC
-    LIMIT 15
+        id,
+        created_at,
+        subreddit,
+        author,
+        title,
+        score,
+        num_comments,
+        url
+        {gold_cols}
+    FROM {table}
+    WHERE {where_clause}
+    ORDER BY {sort_mapping.get(sort_by, 'created_at DESC')}
+    LIMIT 500
     """
     return run_query(query)
+
+# ================================
+# VISUALIZATION FUNCTIONS
+# ================================
+
+def create_wordcloud(text_data, title):
+    """Create word cloud visualization."""
+    if text_data.empty:
+        return None
+    
+    text = " ".join(text_data['title'].fillna('') + " " + text_data['selftext'].fillna(''))
+    
+    if not text.strip():
+        return None
+    
+    wordcloud = WordCloud(
+        width=800,
+        height=400,
+        background_color='white',
+        colormap='Oranges',
+        max_words=100,
+        relative_scaling=0.5,
+        min_font_size=10
+    ).generate(text)
+    
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.axis('off')
+    ax.set_title(title, fontsize=16, fontweight='bold', pad=20)
+    plt.tight_layout()
+    
+    return fig
+
 
 # ================================
 # MAIN APP
 # ================================
 
 def main():
-    # Header
+    # Navbar with Reddit logo
     st.markdown("""
-    <div class="main-header">
-        <h1>🔍 Reddit Recon Analytics</h1>
-        <p>Professional Reddit Data Analysis Dashboard | Real-time Insights & Trends</p>
+    <div class="navbar">
+        <div class="navbar-content">
+            <span class="navbar-logo">🔍</span>
+            <h1 class="navbar-title">Reddit_Recon</h1>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Check database connection
+    # Check connection
     if not get_databricks_connection():
         st.stop()
     
-    # Check if Gold layer is available
-    gold_available = check_gold_layer_available()
+    # Check Gold layer
+    gold_available = check_gold_layer()
     
-    # Sidebar filters
-    with st.sidebar:
-        st.markdown("## 🎛️ Filters")
+    # Get date range
+    min_date, max_date = get_available_dates()
+    
+    if not min_date or not max_date:
+        st.warning("⚠️ No data available. Please run the Bronze Layer ETL pipeline.")
+        st.stop()
+    
+    # Convert to datetime
+    if isinstance(min_date, str):
+        min_date = pd.to_datetime(min_date)
+    if isinstance(max_date, str):
+        max_date = pd.to_datetime(max_date)
+    
+    # Get all subreddits
+    all_subreddits = get_available_subreddits()
+    
+    # Tabs for three sections
+    tab1, tab2, tab3 = st.tabs(["📊 KPIs & Metrics", "🎭 Sentiment Analysis", "📋 Raw Data"])
+    
+    # ================================
+    # TAB 1: KPIs & METRICS
+    # ================================
+    
+    with tab1:
+        st.markdown('<div class="section-header"><h2>Key Performance Indicators</h2></div>', unsafe_allow_html=True)
         
-        # Date range filter
-        st.markdown("### 📅 Date Range")
-        min_date, max_date = get_available_dates()
+        # Filters
+        col1, col2 = st.columns([2, 1])
         
-        if min_date and max_date:
-            # Convert to datetime if they're strings
-            if isinstance(min_date, str):
-                min_date = pd.to_datetime(min_date)
-            if isinstance(max_date, str):
-                max_date = pd.to_datetime(max_date)
-            
+        with col1:
             date_option = st.radio(
-                "Select period:",
-                ["Last 7 Days", "Last 30 Days", "Custom Range", "All Time"]
+                "📅 Date Range:",
+                ["Last 7 Days", "Last 30 Days", "Custom Range", "Specific Month", "All Time"],
+                horizontal=True
             )
             
             if date_option == "Last 7 Days":
@@ -443,332 +478,334 @@ def main():
                 start_date = max_date - timedelta(days=30)
                 end_date = max_date
             elif date_option == "Custom Range":
-                col1, col2 = st.columns(2)
-                with col1:
+                col_a, col_b = st.columns(2)
+                with col_a:
                     start_date = st.date_input("From", min_date, min_value=min_date, max_value=max_date)
-                with col2:
+                with col_b:
                     end_date = st.date_input("To", max_date, min_value=min_date, max_value=max_date)
-            else:  # All Time
-                start_date = min_date
-                end_date = max_date
-            
-            # Monthly filter option
-            st.markdown("### 📆 Month Filter")
-            use_month_filter = st.checkbox("Filter by specific month")
-            
-            if use_month_filter:
-                year_options = list(range(min_date.year, max_date.year + 1))
-                selected_year = st.selectbox("Year", year_options, index=len(year_options)-1)
-                selected_month = st.selectbox("Month", range(1, 13), 
-                                             format_func=lambda x: calendar.month_name[x])
-                
-                # Set date range to selected month
+            elif date_option == "Specific Month":
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    year_options = list(range(min_date.year, max_date.year + 1))
+                    selected_year = st.selectbox("Year", year_options, index=len(year_options)-1)
+                with col_b:
+                    selected_month = st.selectbox("Month", range(1, 13), 
+                                                 format_func=lambda x: calendar.month_name[x])
                 start_date = datetime(selected_year, selected_month, 1).date()
                 last_day = calendar.monthrange(selected_year, selected_month)[1]
                 end_date = datetime(selected_year, selected_month, last_day).date()
+            else:  # All Time
+                start_date = min_date
+                end_date = max_date
+        
+        with col2:
+            selected_subreddits = st.multiselect(
+                "🏷️ Filter Subreddits:",
+                all_subreddits,
+                default=[]
+            )
+        
+        # Fetch KPI data
+        kpi_data = get_kpi_metrics(start_date, end_date, selected_subreddits)
+        
+        if not kpi_data.empty:
+            kpi = kpi_data.iloc[0]
+            
+            # Display KPIs
+            st.markdown("### 📈 Overview")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("📝 Total Posts", f"{int(kpi['total_posts']):,}")
+                st.metric("👥 Unique Authors", f"{int(kpi['unique_authors']):,}")
+            
+            with col2:
+                st.metric("⬆️ Total Score", f"{int(kpi['total_score']):,}")
+                st.metric("📊 Avg Score", f"{int(kpi['avg_score']):,}")
+            
+            with col3:
+                st.metric("💬 Total Comments", f"{int(kpi['total_comments']):,}")
+                st.metric("📈 Avg Comments", f"{int(kpi['avg_comments']):,}")
+            
+            with col4:
+                st.metric("🏷️ Subreddits", f"{int(kpi['unique_subreddits']):,}")
+                engagement = (kpi['total_comments'] / kpi['total_posts']) if kpi['total_posts'] > 0 else 0
+                st.metric("🔥 Engagement", f"{engagement:.1f}")
+            
+            st.markdown("---")
+            
+            # Daily trends
+            st.markdown("### 📅 Daily Trends")
+            daily_data = get_daily_trends(start_date, end_date, selected_subreddits)
+            
+            if not daily_data.empty:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    fig = px.line(daily_data, x='date', y='posts', 
+                                 title='Daily Post Volume',
+                                 labels={'posts': 'Number of Posts', 'date': 'Date'})
+                    fig.update_traces(line_color=REDDIT_ORANGE, line_width=3)
+                    fig.update_layout(hovermode='x unified', plot_bgcolor='white')
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    fig = px.line(daily_data, x='date', y='total_score',
+                                 title='Daily Total Score',
+                                 labels={'total_score': 'Total Score', 'date': 'Date'})
+                    fig.update_traces(line_color=REDDIT_BLUE, line_width=3)
+                    fig.update_layout(hovermode='x unified', plot_bgcolor='white')
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            st.markdown("---")
+            
+            # Top subreddits
+            st.markdown("### 🏆 Top 10 Subreddits")
+            top_subs = get_top_subreddits(start_date, end_date, 10)
+            
+            if not top_subs.empty:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    fig = px.bar(top_subs, x='post_count', y='subreddit',
+                                orientation='h',
+                                title='By Post Count',
+                                labels={'post_count': 'Number of Posts', 'subreddit': ''})
+                    fig.update_traces(marker_color=REDDIT_ORANGE)
+                    fig.update_layout(yaxis={'categoryorder': 'total ascending'}, plot_bgcolor='white')
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    fig = px.bar(top_subs, x='total_score', y='subreddit',
+                                orientation='h',
+                                title='By Total Score',
+                                labels={'total_score': 'Total Score', 'subreddit': ''})
+                    fig.update_traces(marker_color=REDDIT_BLUE)
+                    fig.update_layout(yaxis={'categoryorder': 'total ascending'}, plot_bgcolor='white')
+                    st.plotly_chart(fig, use_container_width=True)
         else:
-            st.warning("⚠️ No data available yet. Please run the Bronze Layer ETL pipeline first.")
+            st.info("ℹ️ No data available for selected filters.")
+
+    
+    # ================================
+    # TAB 2: SENTIMENT ANALYSIS
+    # ================================
+    
+    with tab2:
+        if not gold_available:
+            st.warning("⚠️ Gold Layer not available. Run the Gold Layer pipeline to enable sentiment analysis.")
+            st.info("💡 The Gold Layer adds AI-powered sentiment, emotion, and topic analysis to your data.")
             st.stop()
         
-        # Subreddit filter
-        st.markdown("### 🏷️ Subreddits")
-        available_subreddits = get_available_subreddits()
+        st.markdown('<div class="section-header"><h2>AI-Powered Sentiment Analysis</h2></div>', unsafe_allow_html=True)
         
-        if available_subreddits:
-            subreddit_option = st.radio(
-                "Select subreddits:",
-                ["All Subreddits", "Select Specific"]
-            )
+        # Use same date filters from tab1
+        sentiment_data = get_sentiment_data(start_date, end_date, selected_subreddits)
+        
+        if sentiment_data.empty:
+            st.info("ℹ️ No sentiment data available for selected filters.")
+        else:
+            # Overall distributions
+            st.markdown("### 📊 Overall Distribution")
             
-            if subreddit_option == "Select Specific":
-                selected_subreddits = st.multiselect(
-                    "Choose subreddits:",
-                    available_subreddits,
-                    default=[]
-                )
-            else:
-                selected_subreddits = []
-        else:
-            selected_subreddits = []
-        
-        # Analysis type
-        st.markdown("### 📊 Analysis Type")
-        if gold_available:
-            analysis_type = st.radio(
-                "Choose analysis level:",
-                ["Basic Metrics", "Sentiment Analysis", "Emotion Analysis", "Topic Analysis", "All Insights"]
-            )
-        else:
-            analysis_type = "Basic Metrics"
-            st.info("ℹ️ Run Gold Layer pipeline to unlock AI-powered insights")
-        
-        # Refresh button
-        st.markdown("---")
-        if st.button("🔄 Refresh Data", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-    
-    # Main content area
-    # Summary metrics
-    st.markdown("## 📈 Key Metrics")
-    
-    df_daily = get_daily_metrics(start_date, end_date, selected_subreddits)
-    
-    if not df_daily.empty:
-        total_posts = df_daily['post_count'].sum()
-        total_score = df_daily['total_score'].sum()
-        avg_score = df_daily['avg_score'].mean()
-        total_comments = df_daily['total_comments'].sum()
-        avg_comments = df_daily['avg_comments'].mean()
-        unique_subreddits = df_daily['unique_subreddits'].max()
-        unique_authors = df_daily['unique_authors'].sum()
-        
-        # Display metrics in columns
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("📝 Total Posts", f"{total_posts:,}")
-            st.metric("👥 Unique Authors", f"{int(unique_authors):,}")
-        
-        with col2:
-            st.metric("⬆️ Total Score", f"{int(total_score):,}")
-            st.metric("📊 Avg Score/Post", f"{int(avg_score):,}")
-        
-        with col3:
-            st.metric("💬 Total Comments", f"{int(total_comments):,}")
-            st.metric("📈 Avg Comments/Post", f"{int(avg_comments):,}")
-        
-        with col4:
-            st.metric("🏷️ Unique Subreddits", f"{int(unique_subreddits):,}")
-            engagement_rate = (total_comments / total_posts) if total_posts > 0 else 0
-            st.metric("🔥 Engagement Rate", f"{engagement_rate:.1f}")
-        
-        st.markdown("---")
-        
-        # Daily trends
-        st.markdown("## 📊 Daily Trends")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Posts over time
-            fig_posts = px.line(
-                df_daily, 
-                x='post_date', 
-                y='post_count',
-                title='Daily Post Volume',
-                labels={'post_count': 'Number of Posts', 'post_date': 'Date'}
-            )
-            fig_posts.update_traces(line_color=REDDIT_ORANGE, line_width=3)
-            fig_posts.update_layout(
-                plot_bgcolor='white',
-                paper_bgcolor='white',
-                font=dict(family="Arial, sans-serif"),
-                hovermode='x unified'
-            )
-            st.plotly_chart(fig_posts, use_container_width=True)
-        
-        with col2:
-            # Score trends
-            fig_score = px.line(
-                df_daily,
-                x='post_date',
-                y='avg_score',
-                title='Average Post Score',
-                labels={'avg_score': 'Average Score', 'post_date': 'Date'}
-            )
-            fig_score.update_traces(line_color=REDDIT_BLUE, line_width=3)
-            fig_score.update_layout(
-                plot_bgcolor='white',
-                paper_bgcolor='white',
-                font=dict(family="Arial, sans-serif"),
-                hovermode='x unified'
-            )
-            st.plotly_chart(fig_score, use_container_width=True)
-        
-        # Subreddit analysis
-        st.markdown("## 🏆 Top Subreddits")
-        
-        df_subreddits = get_subreddit_metrics(start_date, end_date, selected_subreddits)
-        
-        if not df_subreddits.empty:
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                # Sentiment distribution
+                sent_dist = sentiment_data.groupby('sentiment')['count'].sum().reset_index()
+                colors_map = {'positive': '#46d160', 'negative': '#ff4757', 'neutral': '#747d8c'}
+                fig = px.pie(sent_dist, values='count', names='sentiment',
+                            title='Sentiment Distribution',
+                            color='sentiment',
+                            color_discrete_map=colors_map)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # Emotion distribution
+                emo_dist = sentiment_data.groupby('emotion')['count'].sum().reset_index().nlargest(7, 'count')
+                fig = px.bar(emo_dist, x='emotion', y='count',
+                            title='Top Emotions',
+                            labels={'count': 'Count', 'emotion': 'Emotion'})
+                fig.update_traces(marker_color=REDDIT_ORANGE)
+                fig.update_layout(plot_bgcolor='white')
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col3:
+                # Topic distribution
+                topic_dist = sentiment_data.groupby('topic')['count'].sum().reset_index().nlargest(10, 'count')
+                fig = px.bar(topic_dist, x='topic', y='count',
+                            title='Top Topics',
+                            labels={'count': 'Count', 'topic': 'Topic'})
+                fig.update_traces(marker_color=REDDIT_BLUE)
+                fig.update_layout(plot_bgcolor='white', xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            st.markdown("---")
+            
+            # Subreddit-level insights
+            st.markdown("### 🎯 Subreddit-Level Insights")
+            
+            subreddit_summary = get_subreddit_sentiment_summary(start_date, end_date)
+            
+            if not subreddit_summary.empty:
+                # Display table
+                st.markdown("#### Dominant Sentiment & Emotion by Subreddit")
+                display_df = subreddit_summary[['subreddit', 'dominant_sentiment', 'dominant_emotion', 'sentiment_count', 'emotion_count']]
+                display_df.columns = ['Subreddit', 'Dominant Sentiment', 'Dominant Emotion', 'Sentiment Count', 'Emotion Count']
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
+            
+            st.markdown("---")
+            
+            # Sentiment vs Topic/Emotion correlations
+            st.markdown("### 🔗 Correlations & Relationships")
+            
             col1, col2 = st.columns(2)
             
             with col1:
-                # Top subreddits by post count
-                fig_sub_count = px.bar(
-                    df_subreddits.head(10),
-                    x='post_count',
-                    y='subreddit',
-                    orientation='h',
-                    title='Top 10 Subreddits by Post Count',
-                    labels={'post_count': 'Number of Posts', 'subreddit': 'Subreddit'}
-                )
-                fig_sub_count.update_traces(marker_color=REDDIT_ORANGE)
-                fig_sub_count.update_layout(
-                    plot_bgcolor='white',
-                    paper_bgcolor='white',
-                    yaxis={'categoryorder': 'total ascending'}
-                )
-                st.plotly_chart(fig_sub_count, use_container_width=True)
+                # Sentiment vs Topic
+                st.markdown("#### Sentiment by Topic")
+                sent_topic = sentiment_data.groupby(['topic', 'sentiment'])['count'].sum().reset_index()
+                sent_topic_top = sent_topic[sent_topic['topic'].isin(
+                    sent_topic.groupby('topic')['count'].sum().nlargest(10).index
+                )]
+                
+                fig = px.bar(sent_topic_top, x='topic', y='count', color='sentiment',
+                            barmode='stack',
+                            labels={'count': 'Count', 'topic': 'Topic'},
+                            color_discrete_map=colors_map)
+                fig.update_layout(plot_bgcolor='white', xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
             
             with col2:
-                # Top subreddits by total score
-                fig_sub_score = px.bar(
-                    df_subreddits.head(10),
-                    x='total_score',
-                    y='subreddit',
-                    orientation='h',
-                    title='Top 10 Subreddits by Total Score',
-                    labels={'total_score': 'Total Score', 'subreddit': 'Subreddit'}
-                )
-                fig_sub_score.update_traces(marker_color=REDDIT_BLUE)
-                fig_sub_score.update_layout(
-                    plot_bgcolor='white',
-                    paper_bgcolor='white',
-                    yaxis={'categoryorder': 'total ascending'}
-                )
-                st.plotly_chart(fig_sub_score, use_container_width=True)
-        
-        # AI-powered insights (if Gold layer available)
-        if gold_available and analysis_type != "Basic Metrics":
+                # Sentiment vs Emotion
+                st.markdown("#### Sentiment by Emotion")
+                sent_emo = sentiment_data.groupby(['emotion', 'sentiment'])['count'].sum().reset_index()
+                
+                fig = px.bar(sent_emo, x='emotion', y='count', color='sentiment',
+                            barmode='stack',
+                            labels={'count': 'Count', 'emotion': 'Emotion'},
+                            color_discrete_map=colors_map)
+                fig.update_layout(plot_bgcolor='white', xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+            
             st.markdown("---")
-            st.markdown("## 🤖 AI-Powered Insights")
             
-            # Sentiment Analysis
-            if analysis_type in ["Sentiment Analysis", "All Insights"]:
-                st.markdown("### 😊 Sentiment Distribution")
-                df_sentiment = get_sentiment_distribution(start_date, end_date, selected_subreddits)
-                
-                if not df_sentiment.empty:
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        # Sentiment pie chart
-                        colors = {'positive': '#46d160', 'negative': '#ff4757', 'neutral': '#747d8c'}
-                        fig_sentiment = px.pie(
-                            df_sentiment,
-                            values='count',
-                            names='sentiment',
-                            title='Sentiment Distribution',
-                            color='sentiment',
-                            color_discrete_map=colors
-                        )
-                        st.plotly_chart(fig_sentiment, use_container_width=True)
-                    
-                    with col2:
-                        # Sentiment confidence
-                        fig_conf = px.bar(
-                            df_sentiment,
-                            x='sentiment',
-                            y='avg_confidence',
-                            title='Average Sentiment Confidence',
-                            labels={'avg_confidence': 'Confidence Score', 'sentiment': 'Sentiment'}
-                        )
-                        fig_conf.update_traces(marker_color=REDDIT_ORANGE)
-                        st.plotly_chart(fig_conf, use_container_width=True)
+            # Word clouds
+            st.markdown("### ☁️ Word Clouds")
             
-            # Emotion Analysis
-            if analysis_type in ["Emotion Analysis", "All Insights"]:
-                st.markdown("### 😮 Emotion Distribution")
-                df_emotion = get_emotion_distribution(start_date, end_date, selected_subreddits)
-                
-                if not df_emotion.empty:
-                    # Emotion bar chart
-                    emotion_colors = {
-                        'joy': '#feca57',
-                        'anger': '#ff4757',
-                        'fear': '#5f27cd',
-                        'sadness': '#48dbfb',
-                        'surprise': '#ff9ff3',
-                        'disgust': '#00d2d3',
-                        'neutral': '#747d8c'
-                    }
-                    
-                    fig_emotion = px.bar(
-                        df_emotion,
-                        x='emotion',
-                        y='count',
-                        title='Emotion Distribution Across Posts',
-                        labels={'count': 'Number of Posts', 'emotion': 'Emotion'},
-                        color='emotion',
-                        color_discrete_map=emotion_colors
-                    )
-                    fig_emotion.update_layout(
-                        plot_bgcolor='white',
-                        paper_bgcolor='white',
-                        showlegend=False
-                    )
-                    st.plotly_chart(fig_emotion, use_container_width=True)
+            cloud_option = st.radio("Select view:", ["Overall", "By Subreddit"], horizontal=True)
             
-            # Topic Analysis
-            if analysis_type in ["Topic Analysis", "All Insights"]:
-                st.markdown("### 📌 Topic Distribution")
-                df_topic = get_topic_distribution(start_date, end_date, selected_subreddits)
-                
-                if not df_topic.empty:
-                    # Topic treemap
-                    fig_topic = px.treemap(
-                        df_topic,
-                        path=['topic'],
-                        values='count',
-                        title='Topic Distribution (Top 15)',
-                        color='count',
-                        color_continuous_scale='Oranges'
-                    )
-                    st.plotly_chart(fig_topic, use_container_width=True)
+            if cloud_option == "Overall":
+                text_data = get_text_for_wordcloud(start_date, end_date)
+                if not text_data.empty:
+                    fig = create_wordcloud(text_data, "Overall Reddit Word Cloud")
+                    if fig:
+                        st.pyplot(fig)
+                else:
+                    st.info("No text data available for word cloud")
+            else:
+                # By subreddit
+                top_subs_list = get_top_subreddits(start_date, end_date, 6)
+                if not top_subs_list.empty:
+                    cols = st.columns(2)
+                    for idx, (_, row) in enumerate(top_subs_list.iterrows()):
+                        sub = row['subreddit']
+                        text_data = get_text_for_wordcloud(start_date, end_date, sub)
+                        if not text_data.empty:
+                            fig = create_wordcloud(text_data, f"r/{sub}")
+                            if fig:
+                                with cols[idx % 2]:
+                                    st.pyplot(fig)
+    
+    # ================================
+    # TAB 3: RAW DATA
+    # ================================
+    
+    with tab3:
+        st.markdown('<div class="section-header"><h2>Raw Data Explorer</h2></div>', unsafe_allow_html=True)
         
-        # Recent posts table
-        st.markdown("---")
-        st.markdown("## 📄 Recent Posts")
+        # Filters
+        col1, col2, col3, col4 = st.columns(4)
         
-        df_posts = get_filtered_data(start_date, end_date, selected_subreddits, use_gold=gold_available)
-        
-        if not df_posts.empty:
-            # Display options
-            show_count = st.slider("Number of posts to display:", 10, 100, 25)
-            
-            # Format and display table
-            display_df = df_posts.head(show_count)[[
-                'post_date', 'subreddit', 'title', 'author', 'score', 'num_comments'
-            ]].copy()
-            
-            display_df['score'] = display_df['score'].apply(lambda x: f"⬆️ {x:,}")
-            display_df['num_comments'] = display_df['num_comments'].apply(lambda x: f"💬 {x:,}")
-            display_df.columns = ['Date', 'Subreddit', 'Title', 'Author', 'Score', 'Comments']
-            
-            st.dataframe(
-                display_df,
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Title": st.column_config.TextColumn(
-                        "Title",
-                        width="large"
-                    )
-                }
+        with col1:
+            sort_by = st.selectbox(
+                "Sort by:",
+                ["Time (Newest)", "Time (Oldest)", "Score (High to Low)", 
+                 "Score (Low to High)", "Comments (High to Low)", "Comments (Low to High)"]
             )
+        
+        with col2:
+            raw_subreddits = st.multiselect(
+                "Subreddits:",
+                all_subreddits,
+                default=[]
+            )
+        
+        if gold_available:
+            with col3:
+                sentiments = st.multiselect(
+                    "Sentiments:",
+                    ["positive", "negative", "neutral"],
+                    default=[]
+                )
             
-            # Download button
-            csv = df_posts.to_csv(index=False)
+            with col4:
+                emotions = st.multiselect(
+                    "Emotions:",
+                    ["joy", "anger", "fear", "sadness", "surprise", "disgust", "neutral"],
+                    default=[]
+                )
+            
+            # Topics filter
+            topics = st.multiselect(
+                "Topics:",
+                ["technology", "politics", "entertainment", "sports", "science", 
+                 "business", "health", "education", "gaming", "news"],
+                default=[]
+            )
+        else:
+            sentiments = []
+            emotions = []
+            topics = []
+        
+        # Fetch data
+        raw_data = get_raw_data(
+            start_date, end_date, raw_subreddits, sentiments, 
+            emotions, topics, sort_by, gold_available
+        )
+        
+        if not raw_data.empty:
+            st.markdown(f"### Showing {len(raw_data)} posts")
+            
+            # Format display
+            display_cols = ['created_at', 'subreddit', 'title', 'author', 'score', 'num_comments']
+            if gold_available:
+                display_cols += ['sentiment', 'emotion', 'topic']
+            
+            display_df = raw_data[display_cols].copy()
+            display_df['created_at'] = pd.to_datetime(display_df['created_at']).dt.strftime('%Y-%m-%d %H:%M')
+            display_df.columns = [col.replace('_', ' ').title() for col in display_df.columns]
+            
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            
+            # Download
+            csv = raw_data.to_csv(index=False)
             st.download_button(
-                label="📥 Download Full Dataset (CSV)",
+                label="📥 Download Data (CSV)",
                 data=csv,
                 file_name=f"reddit_data_{start_date}_{end_date}.csv",
                 mime="text/csv",
                 use_container_width=True
             )
         else:
-            st.info("ℹ️ No posts found for the selected filters.")
-    else:
-        st.warning("⚠️ No data available for the selected date range.")
+            st.info("ℹ️ No data matches your filters.")
     
     # Footer
     st.markdown("---")
     st.markdown("""
-    <div style='text-align: center; color: #666; padding: 2rem;'>
+    <div style='text-align: center; color: #7c7c7c; padding: 1rem;'>
         <p><strong>Reddit Recon Analytics</strong> | Powered by Databricks & Streamlit</p>
-        <p style='font-size: 0.9rem;'>Data refreshes automatically every 5 minutes</p>
+        <p style='font-size: 0.85rem;'>Data refreshes every 5 minutes</p>
     </div>
     """, unsafe_allow_html=True)
 
