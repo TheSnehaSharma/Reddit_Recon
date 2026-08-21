@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 
 st.set_page_config(
     page_title="Reddit Recon | Sentiment Analytics",
-    page_icon="🔍",
+    page_icon="\ue060",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -83,9 +83,9 @@ st.markdown("""
     
     .filter-section {
         background-color: white;
-        padding: 1.5rem;
+        padding: 1rem 1.15rem;
         border-radius: 8px;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.1rem;
         box-shadow: 0 2px 4px rgba(0,0,0,0.08);
         border-left: 4px solid #FF4500;
     }
@@ -347,58 +347,66 @@ def get_raw_data(start_date, end_date, subreddits, limit=100):
 
 with st.sidebar:
     st.markdown("""
-    <div style='text-align: center; padding: 1rem 0 2rem 0;'>
-        <div style='font-size: 3rem; margin-bottom: 0.5rem;'>🔍</div>
-        <div style='font-size: 1.8rem; font-weight: 700; color: white;'>Reddit Recon</div>
-        <div style='font-size: 0.9rem; color: rgba(255,255,255,0.8); margin-top: 0.3rem;'>Sentiment Analytics Dashboard</div>
+    <div style='text-align: center; padding: 0.35rem 0 0.7rem 0;'>
+        <div class='reddit-icon' style='font-size: 2.25rem; margin-bottom: 0.2rem;'>&#xe060;</div>
+        <div style='font-size: 1.45rem; font-weight: 700; color: white;'>Reddit Recon</div>
+        <div style='font-size: 0.78rem; color: rgba(255,255,255,0.8); margin-top: 0.15rem;'>Sentiment Analytics Dashboard</div>
     </div>
     """, unsafe_allow_html=True)
-    
+
     st.markdown("---")
-    
-    st.markdown("### 🎯 Navigation")
-    page = st.radio(
-        "Select Section",
-        ["📊 KPIs & Metrics", "💭 Sentiment Analysis", "📋 Raw Data Explorer"],
-        label_visibility="collapsed"
-    )
-    
+    st.markdown("### Navigation")
+
+    nav_items = [
+        ("📊 KPIs & Metrics", "kpis"),
+        ("💭 Sentiment Analysis", "sentiment"),
+        ("📋 Raw Data Explorer", "raw"),
+    ]
+
+    if "page" not in st.session_state:
+        st.session_state.page = "kpis"
+
+    for label, key in nav_items:
+        active = st.session_state.page == key
+        button_class = "nav-active" if active else ""
+        st.markdown(f"<div class='{button_class}'>", unsafe_allow_html=True)
+        if st.button(label, key=f"nav_{key}", use_container_width=True):
+            st.session_state.page = key
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    page = {
+        "kpis": "📊 KPIs & Metrics",
+        "sentiment": "💭 Sentiment Analysis",
+        "raw": "📋 Raw Data Explorer",
+    }[st.session_state.page]
+
     st.markdown("---")
-    
     st.markdown("### ℹ️ About")
     st.markdown("""
     **Reddit Recon** analyzes Reddit posts with:
-    
+
     🎯 **KPI Tracking**  
     Monitor posts, scores, comments
-    
+
     💭 **Sentiment AI**  
     Positive, negative, neutral analysis
-    
+
     🎨 **Emotion Detection**  
     7 emotion categories
-    
+
     📚 **Topic Classification**  
     15 content categories
     """)
-    
+
     st.markdown("---")
     st.markdown("**Data Refresh:** Daily at midnight UTC")
     st.markdown("**Cache TTL:** 24 hours")
 
+
 # ================================
 # MAIN AREA
 # ================================
-
-st.markdown("""
-<div style='background: linear-gradient(90deg, #FF4500 0%, #FF6B35 100%); 
-            padding: 2rem; border-radius: 10px; margin-bottom: 2rem;'>
-    <h1 style='color: white; margin: 0; font-size: 2.5rem;'>🔍 Reddit Recon Dashboard</h1>
-    <p style='color: rgba(255,255,255,0.9); margin-top: 0.5rem; font-size: 1.1rem;'>
-        AI-Powered Reddit Analytics & Sentiment Intelligence
-    </p>
-</div>
-""", unsafe_allow_html=True)
 
 st.markdown("<div class='filter-section'>", unsafe_allow_html=True)
 st.markdown("### 🔧 Filters")
@@ -709,7 +717,7 @@ elif page == "📋 Raw Data Explorer":
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #6B7280; padding: 2rem 0;'>
-    <p>🔍 <strong>Reddit Recon</strong> | Powered by Databricks & Streamlit</p>
+    <p><span class='reddit-icon'>&#xe060;</span> <strong>Reddit Recon</strong> | Powered by Databricks & Streamlit</p>
     <p style='font-size: 0.9rem;'>Real-time Reddit Analytics with AI-Powered Insights</p>
 </div>
 """, unsafe_allow_html=True)
