@@ -1,326 +1,100 @@
-# 🔍 Reddit Recon - AI-Powered Sentiment Analytics Platform
+# 🎯 Reddit Conversation Intelligence Dashboard
 
-[![Databricks](https://img.shields.io/badge/Databricks-Lakehouse-FF3621?logo=databricks)](https://databricks.com/)
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?logo=streamlit)](https://streamlit.io/)
-[![Delta Lake](https://img.shields.io/badge/Delta%20Lake-Storage-00ADD8)](https://delta.io/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+> A professional social listening and conversation analytics platform powered by Databricks, NLP, and Machine Learning
 
-A comprehensive end-to-end data engineering and machine learning platform that ingests, processes, and analyzes Reddit posts using state-of-the-art AI models on Databricks Lakehouse.
-
-![Reddit Recon Dashboard](assets/dashboard-preview.png)
+[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=Streamlit&logoColor=white)](https://streamlit.io/)
+[![Databricks](https://img.shields.io/badge/Databricks-FF3621?style=for-the-badge&logo=Databricks&logoColor=white)](https://databricks.com/)
+[![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 
 ---
 
-## 📋 Table of Contents
+## 📊 Overview
 
-* [Overview](#overview)
-* [Features](#features)
-* [Architecture](#architecture)
-* [Tech Stack](#tech-stack)
-* [Data Pipeline](#data-pipeline)
-* [AI Models](#ai-models)
-* [Installation & Setup](#installation--setup)
-* [Usage](#usage)
-* [Project Structure](#project-structure)
-* [Dashboard Screenshots](#dashboard-screenshots)
-* [Performance & Scalability](#performance--scalability)
-* [Future Enhancements](#future-enhancements)
-* [Contributing](#contributing)
-* [License](#license)
-* [Acknowledgements](#acknowledgements)
+Reddit Conversation Intelligence is an enterprise-grade analytics platform that transforms Reddit conversations into actionable insights using advanced NLP and machine learning. The platform provides real-time social listening capabilities, sentiment analysis, topic intelligence, and predictive analytics.
 
----
+### ✨ Key Features
 
-## 🎯 Overview
-
-**Reddit Recon** is a production-grade sentiment analytics platform that processes Reddit data through a multi-layer lakehouse architecture. It combines modern data engineering practices with cutting-edge NLP models to deliver real-time insights into social media sentiment, emotions, and trending topics.
-
-### Key Capabilities
-
-* **📊 Real-Time Analytics**: Interactive Streamlit dashboard with KPI tracking and trend visualization
-* **🤖 AI-Powered Insights**: Sentiment, emotion, and topic classification using transformer models
-* **🏗️ Scalable Architecture**: Three-layer medallion architecture (Bronze → Silver → Gold)
-* **⚡ Fast Processing**: Serverless compute with Delta Lake for ACID transactions
-* **📈 Interactive Visualizations**: Plotly-powered charts for deep-dive analysis
-
----
-
-## ✨ Features
-
-### 📊 Dashboard Analytics
-
-* **KPI Tracking**: Monitor posts, scores, comments, engagement rates, and community metrics
-* **Daily Trends**: Visualize post volume, scores, and comments over time
-* **Top Subreddits**: Identify most active communities by post count and engagement
-* **Raw Data Explorer**: Browse, filter, sort, and export Reddit posts as CSV
-
-### 🤖 AI-Powered Analysis
-
-* **Sentiment Classification**: Positive, negative, or neutral sentiment detection
-* **Emotion Recognition**: 7-category emotion detection (joy, anger, fear, sadness, surprise, disgust, neutral)
-* **Topic Categorization**: Zero-shot classification across 15 content topics
-* **Confidence Scoring**: Model confidence metrics for quality assessment
-
-### 🔧 Data Engineering
-
-* **Automated ETL Pipeline**: Daily ingestion and processing with Databricks Jobs
-* **Data Quality Checks**: Validation, deduplication, and schema enforcement
-* **Incremental Processing**: Efficient delta processing with watermark tracking
-* **Version Control**: Git integration for notebook versioning
+* **📈 Executive Overview** - Real-time KPIs, conversation volume trends, and topic rankings
+* **💭 Sentiment Analysis** - Emotional polarity detection with confidence scoring
+* **📚 Topic Intelligence** - Automatic topic classification and trend detection
+* **🎭 Emotion Analysis** - Multi-class emotion detection (joy, anger, fear, etc.)
+* **🔥 Engagement Analytics** - Identify high-performing content and optimal posting times
+* **🤖 Predictive Analytics** - ML-powered engagement prediction with feature importance
+* **⚠️ Anomaly Detection** - Real-time spike detection and unusual pattern identification
 
 ---
 
 ## 🏗️ Architecture
 
-Reddit Recon implements the **Medallion Architecture** on Databricks Lakehouse:
+### Dashboard Pages
 
 ```
-┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
-│  Bronze Layer   │ ───▶ │  Silver Layer   │ ───▶ │   Gold Layer    │
-│  Raw Ingestion  │      │  Cleaned Data   │      │  AI Enrichment  │
-└─────────────────┘      └─────────────────┘      └─────────────────┘
-        │                        │                         │
-        │                        │                         │
-        ▼                        ▼                         ▼
-  Delta Table              Delta Table              Delta Table
-  (Raw JSON)              (Structured)            (+ ML Features)
+├── 📊 Overview                   # Executive summary and KPIs
+├── 💭 Sentiment Analysis         # Emotional polarity insights
+├── 📚 Topic Intelligence         # What people are talking about
+├── 🎭 Emotion Analysis          # Emotional response patterns
+├── 🔥 Engagement Analysis       # What drives interaction
+├── 🤖 Predictive Analytics      # ML-powered predictions
+└── ⚠️ Anomaly Detection         # Unusual pattern identification
 ```
 
-### Layer Details
+### Technical Stack
 
-#### 🥉 Bronze Layer
-* **Purpose**: Raw data ingestion from Reddit Archive Shift
-* **Format**: Delta Lake with raw JSON columns
-* **Schema**: Minimal validation, preserves original structure
-* **Update**: Daily full refresh
+**Frontend & Visualization**
+* Streamlit - Interactive web application framework
+* Plotly - Professional interactive charts and graphs
+* Pandas & NumPy - Data manipulation and analysis
 
-#### 🥈 Silver Layer
-* **Purpose**: Data cleaning, deduplication, and standardization
-* **Processing**:
-  * Remove duplicates by post ID
-  * Parse timestamps and normalize dates
-  * Clean text fields and handle nulls
-  * Cast numeric fields (score, comments, awards)
-* **Table**: `workspace.redditrecon.posts_silver`
-* **Schema**: 16 structured columns
+**Backend & Data**
+* Databricks Lakehouse - Unified data platform
+* Delta Lake - ACID-compliant data storage
+* Databricks SQL - Serverless query engine
 
-#### 🥇 Gold Layer
-* **Purpose**: AI enrichment with sentiment, emotion, and topic
-* **Models**:
-  * RoBERTa for sentiment classification
-  * DistilRoBERTa for emotion detection
-  * BART for zero-shot topic classification
-* **Table**: `workspace.redditrecon.posts_gold`
-* **Schema**: 22 columns (Silver + 6 ML features)
+**AI & Machine Learning**
+* Sentiment: `cardiffnlp/twitter-roberta-base-sentiment-latest`
+* Emotion: `j-hartmann/emotion-english-distilroberta-base`
+* Topic: `facebook/bart-large-mnli` (zero-shot classification)
 
 ---
 
-## 🛠️ Tech Stack
-
-### Data Platform
-* **Databricks Lakehouse** - Unified analytics platform
-* **Delta Lake** - ACID storage layer with time travel
-* **Apache Spark** - Distributed data processing
-* **Unity Catalog** - Data governance and security
-
-### Machine Learning
-* **Transformers** - Hugging Face transformer models
-* **PyTorch** - Deep learning framework
-* **MLflow** - Experiment tracking and model registry
-
-### Visualization & BI
-* **Streamlit** - Interactive web dashboard
-* **Plotly** - Interactive charts and graphs
-* **Pandas** - Data manipulation
-
-### Development Tools
-* **Git** - Version control
-* **Python 3.10+** - Primary language
-* **Databricks Notebooks** - Interactive development
-
----
-
-## 🔄 Data Pipeline
-
-### Pipeline Stages
-
-```mermaid
-graph LR
-    A[Reddit API] --> B[Bronze Ingestion]
-    B --> C[Silver Transformation]
-    C --> D[Gold AI Enrichment]
-    D --> E[Streamlit Dashboard]
-    D --> F[SQL Analytics]
-```
-
-### Execution Schedule
-
-| Pipeline | Frequency | Runtime | Compute |
-|----------|-----------|---------|---------|
-| Bronze Ingestion | Daily @ 00:00 UTC | ~5 min | Serverless |
-| Silver Transformation | Daily @ 00:30 UTC | ~10 min | Serverless |
-| Gold AI Enrichment | Daily @ 01:00 UTC | ~30 min | GPU-enabled |
-
-### Data Flow
-
-1. **Ingestion**: Fetch Reddit posts from Archive Shift API
-2. **Validation**: Check schema, handle missing fields
-3. **Deduplication**: Remove duplicate posts by ID
-4. **Transformation**: Clean text, parse dates, normalize scores
-5. **AI Processing**: Apply sentiment, emotion, and topic models
-6. **Persistence**: Write to Delta tables with ACID guarantees
-7. **Visualization**: Serve data to Streamlit dashboard
-
----
-
-## 🤖 AI Models
-
-### Model Selection
-
-| Task | Model | Source | Metrics |
-|------|-------|--------|---------|
-| Sentiment | `cardiffnlp/twitter-roberta-base-sentiment-latest` | Hugging Face | F1: 0.85 |
-| Emotion | `j-hartmann/emotion-english-distilroberta-base` | Hugging Face | Acc: 0.72 |
-| Topic | `facebook/bart-large-mnli` | Hugging Face | Zero-shot |
-
-### Model Details
-
-#### Sentiment Analysis (RoBERTa)
-* **Classes**: positive, negative, neutral
-* **Input**: Post title + body (max 512 tokens)
-* **Output**: Class label + confidence score
-* **Avg Confidence**: 0.78
-
-#### Emotion Detection (DistilRoBERTa)
-* **Classes**: joy, anger, fear, sadness, surprise, disgust, neutral
-* **Input**: Post title + body (max 512 tokens)
-* **Output**: Emotion label + confidence score
-* **Avg Confidence**: 0.65
-
-#### Topic Classification (BART Zero-Shot)
-* **Categories**: 15 predefined topics
-  * Technology & Science
-  * News & Politics
-  * Entertainment & Media
-  * Gaming, Sports, Health & Wellness
-  * Education & Learning, Business & Finance
-  * Art & Design, Lifestyle & Personal
-  * Memes & Humor, DIY & Crafts
-  * Food & Cooking, Travel & Places
-  * Relationships & Advice
-* **Method**: Zero-shot classification with NLI
-* **Output**: Topic label + confidence score
-
----
-
-## 🚀 Installation & Setup
+## 🚀 Quick Start
 
 ### Prerequisites
 
-* Databricks workspace with Unity Catalog enabled
-* Serverless SQL Warehouse (or provisioned warehouse)
-* Git integration configured in Databricks Repos
+* Databricks workspace with access to `workspace.redditrecon.posts_gold` table
+* Python 3.8+
+* Environment variables configured (see below)
 
-### Setup Steps
+### Installation
 
-#### 1. Clone Repository
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/Reddit_Recon.git
+   cd Reddit_Recon/streamlit_app
+   ```
 
-```bash
-# In Databricks Repos
-git clone https://github.com/TheSnehaSharma/Reddit_Recon.git
-cd Reddit_Recon
-```
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-#### 2. Create Unity Catalog Schema
+3. **Configure environment variables**
+   
+   Create a `.env` file or set environment variables:
+   ```bash
+   export DATABRICKS_SERVER_HOSTNAME="your-workspace.cloud.databricks.com"
+   export DATABRICKS_HTTP_PATH="/sql/1.0/warehouses/your-warehouse-id"
+   export DATABRICKS_TOKEN="your-access-token"
+   ```
 
-```sql
--- Run in Databricks SQL editor
-CREATE CATALOG IF NOT EXISTS workspace;
-CREATE SCHEMA IF NOT EXISTS workspace.redditrecon;
-```
+4. **Run the dashboard**
+   ```bash
+   streamlit run app.py
+   ```
 
-#### 3. Configure Environment
-
-Update notebook paths and catalog names if using custom Unity Catalog structure:
-
-```python
-# In each notebook
-SOURCE_TABLE = "workspace.redditrecon.posts_silver"
-TARGET_TABLE = "workspace.redditrecon.posts_gold"
-```
-
-#### 4. Install Dependencies
-
-```bash
-# For Gold Layer pipeline (GPU-enabled compute recommended)
-%pip install transformers==4.36.0 torch==2.1.0 mlflow==2.9.0
-```
-
-#### 5. Run Data Pipeline
-
-Execute notebooks in order:
-
-1. **Bronze Layer**: `Bronze Layer - Raw Data Ingestion.ipynb`
-2. **Silver Layer**: `Silver Layer - Data Transformation.ipynb`
-3. **Gold Layer**: `Gold Layer - Sentiment, Emotion and Topic Analysis.ipynb`
-
-#### 6. Deploy Streamlit App
-
-```bash
-cd streamlit_app
-streamlit run app.py
-```
-
-Or deploy via Databricks Apps (recommended for production).
-
----
-
-## 📖 Usage
-
-### Query Gold Layer Data
-
-```sql
--- Find highly confident negative posts
-SELECT title, sentiment, sentiment_confidence, score
-FROM workspace.redditrecon.posts_gold
-WHERE sentiment = 'negative' AND sentiment_confidence > 0.8
-ORDER BY score DESC
-LIMIT 10;
-
--- Analyze emotion trends by subreddit
-SELECT 
-    subreddit,
-    emotion,
-    COUNT(*) as count,
-    AVG(emotion_confidence) as avg_confidence
-FROM workspace.redditrecon.posts_gold
-GROUP BY subreddit, emotion
-ORDER BY count DESC;
-
--- Topic distribution over time
-SELECT 
-    DATE(created_at) as date,
-    topic,
-    COUNT(*) as posts
-FROM workspace.redditrecon.posts_gold
-GROUP BY DATE(created_at), topic
-ORDER BY date DESC, posts DESC;
-```
-
-### Access Dashboard
-
-1. Open Streamlit app URL
-2. Use filters to select date range and subreddits
-3. Navigate between pages:
-   * **KPIs & Metrics**: Overview statistics
-   * **Sentiment Analysis**: AI insights
-   * **Raw Data Explorer**: Browse posts
-   * **About**: Project documentation
-
-### Export Data
-
-Download raw data as CSV from the Raw Data Explorer page with custom filters applied.
+5. **Access the dashboard**
+   
+   Open your browser and navigate to `http://localhost:8501`
 
 ---
 
@@ -328,170 +102,203 @@ Download raw data as CSV from the Raw Data Explorer page with custom filters app
 
 ```
 Reddit_Recon/
-├── README.md                          # This file
-├── .gitignore                         # Git ignore rules
 │
-├── Bronze Layer - Raw Data Ingestion.ipynb
-│   └── Ingests raw Reddit data from Archive Shift
+├── streamlit_app/              # Main dashboard application
+│   ├── app.py                  # Main Streamlit application (7 pages)
+│   ├── data_loader.py          # Database queries and data loading
+│   ├── metrics.py              # KPI calculations and aggregations
+│   ├── charts.py               # Plotly visualization functions
+│   ├── requirements.txt        # Python dependencies
+│   └── .streamlit/             # Streamlit configuration
+│       └── config.toml         # Theme and settings
 │
-├── Silver Layer - Data Transformation.ipynb
-│   └── Cleans and transforms data
-│
-├── Gold Layer - Sentiment, Emotion and Topic Analysis.ipynb
-│   └── Applies AI models for enrichment
-│
-├── streamlit_app/
-│   ├── app.py                         # Main Streamlit dashboard
-│   └── requirements.txt               # Python dependencies
-│
-├── assets/
-│   └── dashboard-preview.png          # Dashboard screenshots
-│
-└── mlflow_artifacts/                  # MLflow tracking (gitignored)
+├── README.md                   # This file
+├── LICENSE                     # MIT License
+└── .gitignore                  # Git ignore rules
 ```
 
 ---
 
-## 📸 Dashboard Screenshots
+## 📊 Data Schema
 
-### KPIs & Metrics Dashboard
-![KPIs Dashboard](assets/kpis-dashboard.png)
+The dashboard expects a `posts_gold` table with the following schema:
 
-* Total posts, scores, comments, engagement rates
-* Daily trend charts for post volume and activity
-* Top 10 subreddits by post count and score
-
-### Sentiment Analysis Dashboard
-![Sentiment Dashboard](assets/sentiment-dashboard.png)
-
-* Sentiment distribution pie chart
-* Emotion detection bar charts
-* Topic classification visualization
-* Sentiment by subreddit heatmap
-
-### Raw Data Explorer
-![Data Explorer](assets/data-explorer.png)
-
-* Sortable and filterable post table
-* Direct links to Reddit posts
-* CSV export functionality
+| Column | Type | Description |
+|--------|------|-------------|
+| `post_id` | STRING | Unique post identifier |
+| `created_at` | TIMESTAMP | Post creation timestamp |
+| `subreddit` | STRING | Subreddit name |
+| `author` | STRING | Reddit username |
+| `title` | STRING | Post title |
+| `selftext` | STRING | Post body text |
+| `sentiment_label` | STRING | Positive / Neutral / Negative |
+| `sentiment_score` | DOUBLE | Sentiment confidence score (-1 to 1) |
+| `emotion_label` | STRING | Emotion classification |
+| `emotion_score` | DOUBLE | Emotion confidence score (0 to 1) |
+| `topic_label` | STRING | Topic classification |
+| `topic_score` | DOUBLE | Topic confidence score (0 to 1) |
+| `score` | INTEGER | Reddit post score (upvotes) |
+| `num_comments` | INTEGER | Number of comments |
+| `upvote_ratio` | DOUBLE | Upvote ratio (0 to 1) |
 
 ---
 
-## ⚡ Performance & Scalability
+## 🎨 Dashboard Features
 
-### Current Performance
+### 1. Overview Dashboard
+* **KPI Cards**: Total posts, average sentiment, total engagement, trending topics, dominant emotions
+* **Conversation Trends**: Volume over time with 7-day rolling average
+* **Sentiment Timeline**: Stacked area chart showing sentiment distribution
+* **Top Topics**: Horizontal bar chart with post counts and percentages
+* **Recent Conversations**: Interactive table with latest posts
 
-| Metric | Value |
-|--------|-------|
-| Records Processed | 100 posts (demo) |
-| Bronze → Silver | ~10 seconds |
-| Silver → Gold | ~10 minutes (AI processing) |
-| Dashboard Load Time | ~2 seconds |
-| Cache TTL | 24 hours |
+### 2. Sentiment Analysis
+* **Distribution Chart**: Sentiment breakdown with percentages
+* **Trend Analysis**: Average sentiment score over time
+* **Topic Heatmap**: Sentiment distribution across topics
+* **Engagement Impact**: Box plots comparing engagement by sentiment
 
-### Scalability
+### 3. Topic Intelligence
+* **Topic Ranking**: Top 15 topics by volume with percentages
+* **Topic Evolution**: Multi-line chart tracking topic trends
+* **Topic Velocity**: Growth rate comparison (trending up/down)
+* **Sentiment Comparison**: Stacked bar chart of sentiment by topic
 
-* **Bronze/Silver**: Scales linearly with Spark partitioning
-* **Gold (AI)**: GPU acceleration recommended for >1000 posts
-* **Dashboard**: Serverless SQL Warehouse auto-scales with queries
-* **Storage**: Delta Lake handles petabyte-scale data
+### 4. Emotion Analysis
+* **Emotion Distribution**: Bar chart of all detected emotions
+* **Temporal Trends**: Emotion composition over time (top 5)
+* **Engagement Correlation**: Which emotions drive interaction
+* **Topic Breakdown**: Heatmap of emotions by topic
 
-### Optimization Tips
+### 5. Engagement Analysis
+* **Topic Rankings**: Average engagement by topic
+* **Best Time to Post**: Day/hour heatmap of optimal posting times
+* **Content Analysis**: Text length vs engagement scatter plot
+* **Top Performers**: Table of highest-engagement posts
 
-1. **Partitioning**: Partition Gold table by `DATE(created_at)`
-2. **Z-Ordering**: Optimize for subreddit and sentiment queries
-3. **Caching**: Enable result caching in Streamlit
-4. **Batch Processing**: Process AI models in batches of 32-64 posts
-5. **Compute**: Use GPU-enabled clusters for transformer models
+### 6. Predictive Analytics
+* **Feature Importance**: Chart showing ML feature contributions
+* **Model Comparison**: Performance metrics (Accuracy, F1, ROC-AUC)
+* **Engagement Simulator**: Interactive prediction tool
+* **Distribution Analysis**: Engagement score histogram
 
----
-
-## 🔮 Future Enhancements
-
-### Planned Features
-
-* [ ] Real-time streaming ingestion with Spark Structured Streaming
-* [ ] Custom topic categories per subreddit
-* [ ] Multi-language sentiment analysis
-* [ ] Named Entity Recognition (NER) for trending entities
-* [ ] Subreddit-specific sentiment baselines
-* [ ] Advanced emotion tracking (temporal patterns)
-* [ ] Reddit comment sentiment analysis
-* [ ] Integration with PowerBI/Tableau
-* [ ] REST API for programmatic access
-* [ ] Alerting for sentiment anomalies
-
-### Research Areas
-
-* Fine-tuning models on Reddit-specific data
-* Sarcasm and irony detection
-* Multi-modal analysis (text + images)
-* Graph analysis of subreddit relationships
+### 7. Anomaly Detection
+* **Volume Anomalies**: Z-score based spike detection
+* **Topic Spikes**: Topics with >100% growth
+* **Sentiment Shifts**: Negative sentiment trend monitoring
+* **Unusual Posts**: Table of exceptional engagement (top 1%)
 
 ---
 
-## 🤝 Contributing
+## 🔧 Configuration
 
-Contributions are welcome! Please follow these guidelines:
+### Streamlit Configuration
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/YourFeature`)
-3. Commit changes (`git commit -m 'Add YourFeature'`)
-4. Push to branch (`git push origin feature/YourFeature`)
-5. Open a Pull Request
+Edit `.streamlit/config.toml` to customize:
 
-### Development Guidelines
+```toml
+[theme]
+primaryColor = "#3498db"
+backgroundColor = "#f8f9fa"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#2c3e50"
+font = "sans serif"
 
-* Follow PEP 8 style guide for Python code
-* Add docstrings to all functions
-* Write unit tests for new features
-* Update README with new functionality
+[server]
+maxUploadSize = 200
+enableCORS = false
+```
 
----
+### Cache Settings
 
-## 📄 License
-
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgements
-
-### Data Sources
-* **Reddit**: Public post data via Archive Shift
-
-### AI Models
-* **Cardiff NLP**: RoBERTa sentiment model
-* **Jochen Hartmann**: DistilRoBERTa emotion model
-* **Facebook AI**: BART zero-shot classification
-
-### Technologies
-* **Databricks**: Lakehouse platform
-* **Delta Lake**: Open-source storage format
-* **Hugging Face**: Transformer models and inference
-* **Streamlit**: Dashboard framework
-* **Plotly**: Interactive visualizations
+* **Data cache TTL**: 1 hour (3600 seconds)
+* **Filter options cache**: 2 hours (7200 seconds)
+* **Query result limit**: 50,000 rows
 
 ---
 
-## 📧 Contact
+## 📈 Metrics & Calculations
 
-**Sneha Sharma**  
-📧 Email: devsnehasharma@gmail.com  
-🔗 LinkedIn: [linkedin.com/in/sneha-sharma](https://linkedin.com/in/sneha-sharma)  
-🐙 GitHub: [github.com/TheSnehaSharma](https://github.com/TheSnehaSharma)
+### Engagement Score
+```python
+engagement_score = log(1 + post_score) + log(1 + num_comments)
+```
+
+### Topic Velocity
+```python
+velocity = ((current_count - previous_count) / previous_count) * 100
+```
+
+### High Engagement Classification
+Posts in the top 25% percentile of engagement scores
+
+### Anomaly Detection
+Z-score > 2.5 using 7-day rolling window
 
 ---
 
-## 🌟 Star History
+## 🎯 Use Cases
 
-If you find this project useful, please consider giving it a star! ⭐
+* **Brand Monitoring**: Track brand mentions and sentiment in real-time
+* **Market Research**: Understand consumer opinions and trending topics
+* **Crisis Management**: Detect sentiment shifts and conversation spikes
+* **Content Strategy**: Identify optimal posting times and high-engagement topics
+* **Competitive Intelligence**: Monitor competitor discussions
+* **Product Insights**: Discover feature requests and pain points
+
+---
+
+## 🛠️ Development
+
+### Adding New Features
+
+1. **New Visualizations**: Add chart functions to `charts.py`
+2. **New Metrics**: Add calculation functions to `metrics.py`
+3. **New Data Sources**: Extend queries in `data_loader.py`
+4. **New Pages**: Add page logic in `app.py` under navigation
+
+### Running in Development Mode
+
+```bash
+streamlit run app.py --server.runOnSave=true
+```
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👨‍💻 Author
+
+**Sneha Sharma**
+* Data Scientist & ML Engineer
+* Specializing in NLP, Social Media Analytics, and Databricks
+
+---
+
+## 🙏 Acknowledgments
+
+* **Hugging Face** - Pre-trained NLP models
+* **Databricks** - Lakehouse platform and compute
+* **Streamlit** - Dashboard framework
+* **Plotly** - Interactive visualizations
+* **Reddit Archive** - Data source
+
+---
+
+## 📞 Support
+
+For questions, issues, or feature requests:
+* Open an issue on GitHub
+* Contact: [Your Email]
 
 ---
 
 <div align="center">
-  <strong>Built with ❤️ on Databricks Lakehouse</strong>
-  <br>
-  <sub>Powered by Apache Spark, Delta Lake, and Transformer Models</sub>
+  <strong>Built with ❤️ using Databricks, Streamlit, and Advanced NLP</strong>
+  <br><br>
+  <sub>Transform conversations into insights • Powered by AI</sub>
 </div>

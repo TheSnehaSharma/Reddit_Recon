@@ -1,20 +1,63 @@
-# MLflow artifacts
-Gold_Layer_Pipeline/
-mlruns/
-
-# Python cache
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb_checkpoints
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
 
-# IDE
+# IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Databricks
+.databricks/
+*.ipynb_checkpoints/
+
+# Streamlit
+.streamlit/secrets.toml
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# Data files (if any)
+*.csv
+*.parquet
+*.json
+data/
+*.db
+*.sqlite
+
+# Backups
+*.backup
+*.bak
+*~
 
 # OS
 .DS_Store
