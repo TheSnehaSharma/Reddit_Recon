@@ -264,18 +264,18 @@ def get_filter_options():
     subs_df = run_query(sub_query)
     
     topic_query = """
-    SELECT DISTINCT topic_label
+    SELECT DISTINCT topic
     FROM workspace.redditrecon.posts_gold
-    WHERE topic_label IS NOT NULL
-    ORDER BY topic_label
+    WHERE topic IS NOT NULL
+    ORDER BY topic
     """
     topics_df = run_query(topic_query)
     
     emotion_query = """
-    SELECT DISTINCT emotion_label
+    SELECT DISTINCT emotion
     FROM workspace.redditrecon.posts_gold
-    WHERE emotion_label IS NOT NULL
-    ORDER BY emotion_label
+    WHERE emotion IS NOT NULL
+    ORDER BY emotion
     """
     emotions_df = run_query(emotion_query)
     
@@ -283,8 +283,8 @@ def get_filter_options():
         'min_date': dates_df.iloc[0]['min_date'] if not dates_df.empty else datetime.now().date() - timedelta(days=30),
         'max_date': dates_df.iloc[0]['max_date'] if not dates_df.empty else datetime.now().date(),
         'subreddits': subs_df['subreddit'].tolist() if not subs_df.empty else [],
-        'topics': topics_df['topic_label'].tolist() if not topics_df.empty else [],
-        'emotions': emotions_df['emotion_label'].tolist() if not emotions_df.empty else []
+        'topics': topics_df['topic'].tolist() if not topics_df.empty else [],
+        'emotions': emotions_df['emotion'].tolist() if not emotions_df.empty else []
     }
 
 @st.cache_data(ttl=3600)
@@ -298,21 +298,21 @@ def load_main_data(start_date, end_date, subreddits=None, topics=None, sentiment
     
     if topics and len(topics) > 0:
         tops = "','".join([t.replace("'", "''") for t in topics])
-        filters.append(f"topic_label IN ('{tops}')")
+        filters.append(f"topic IN ('{tops}')")
     
     if sentiments and len(sentiments) > 0:
         sents = "','".join(sentiments)
-        filters.append(f"sentiment_label IN ('{sents}')")
+        filters.append(f"sentiment IN ('{sents}')")
     
     if emotions and len(emotions) > 0:
         emos = "','".join([e.replace("'", "''") for e in emotions])
-        filters.append(f"emotion_label IN ('{emos}')")
+        filters.append(f"emotion IN ('{emos}')")
     
     where_clause = " AND ".join(filters)
     
     query = f"""
     SELECT 
-        post_id,
+        id as post_id,
         created_at,
         DATE(created_at) as created_date,
         HOUR(created_at) as hour,
@@ -322,15 +322,15 @@ def load_main_data(start_date, end_date, subreddits=None, topics=None, sentiment
         title,
         selftext,
         LENGTH(COALESCE(title, '') || ' ' || COALESCE(selftext, '')) as text_length,
-        sentiment_label,
-        sentiment_score,
-        emotion_label,
-        emotion_score,
-        topic_label,
-        topic_score,
+        sentiment as sentiment_label,
+        sentiment_confidence as sentiment_score,
+        emotion as emotion_label,
+        emotion_confidence as emotion_score,
+        topic as topic_label,
+        topic_confidence as topic_score,
         score as post_score,
         num_comments,
-        upvote_ratio
+        0.5 as upvote_ratio
     FROM workspace.redditrecon.posts_gold
     WHERE {where_clause}
     ORDER BY created_at DESC
