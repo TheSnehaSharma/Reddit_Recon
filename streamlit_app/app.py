@@ -651,7 +651,7 @@ with st.sidebar:
     with col1:
         start_date = st.date_input(
             "Start Date",
-            value=filters['max_date'] - timedelta(days=30),
+            value=max(filters['min_date'], filters['max_date'] - timedelta(days=30)),
             min_value=filters['min_date'],
             max_value=filters['max_date']
         )
