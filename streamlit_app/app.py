@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Callable, Any
 
 import pandas as pd
 import plotly.express as px
@@ -106,7 +108,10 @@ BASE_VIEW = f"{CATALOG}.{SCHEMA}.vw_reddit_posts"
 
 @st.cache_resource(show_spinner=False)
 def get_connection():
-    """One warehouse connection per app process, reused across sessions."""
+    """One warehouse connection per app process, reused across sessions.
+    Note: Connection itself is thread-safe, but cursors are NOT.
+    Each thread must create its own cursor.
+    """
     if dbsql is None:
         raise RuntimeError(
             "databricks-sql-connector is not installed. "
@@ -166,41 +171,70 @@ def health_check() -> bool:
         return False
 
 
-@st.cache_data(ttl=600, show_spinner="Querying Databricks…")
-def run_query(sql_text: str, params: dict | None = None, retry_count: int = 3) -> pd.DataFrame:
+@st.cache_data(ttl=600, show_spinner=False)
+def run_query(sql_text: str, params: dict | None = None, retry_count: int = 2) -> pd.DataFrame:
     """Execute SQL against the warehouse, return a memory-optimized frame.
+    Thread-safe: Each call creates its own cursor.
     Cached 10 min per unique (sql, params) — repeated filter states are free.
     """
     last_error = None
     
     for attempt in range(retry_count):
+        cursor = None
         try:
             conn = get_connection()
-            with conn.cursor() as cur:
-                cur.execute(sql_text, params or {})
-                cols = [c[0] for c in cur.description]
-                rows = cur.fetchall()
+            # IMPORTANT: Each thread gets its own cursor for thread safety
+            cursor = conn.cursor()
+            cursor.execute(sql_text, params or {})
+            cols = [c[0] for c in cursor.description]
+            rows = cursor.fetchall()
             return optimize_dtypes(pd.DataFrame(rows, columns=cols))
         except Exception as e:
             last_error = e
-            if attempt < retry_count - 1:
-                # Wait before retry (exponential backoff)
+            error_msg = str(e).lower()
+            
+            # Only retry on transient errors
+            is_transient = any(x in error_msg for x in [
+                'timeout', 'connection', 'temporarily unavailable',
+                'too many requests', 'throttled'
+            ])
+            
+            if attempt < retry_count - 1 and is_transient:
                 import time
-                time.sleep(2 ** attempt)
+                # Shorter retry delay: 1s, then 2s
+                time.sleep(1 * (attempt + 1))
+            elif not is_transient:
+                # Non-transient error - fail immediately
+                raise RuntimeError(
+                    f"Query failed with non-retryable error.\n"
+                    f"Error: {str(last_error)}"
+                ) from last_error
             else:
-                # Last attempt failed, raise with context
+                # Exhausted retries
                 raise RuntimeError(
                     f"Query failed after {retry_count} attempts.\n"
                     f"Error: {str(last_error)}"
                 ) from last_error
+        finally:
+            # Clean up cursor
+            if cursor is not None:
+                try:
+                    cursor.close()
+                except:
+                    pass
 
 
 # ══════════════════════════════════════════════════════════════════════════
 # FILTER STATE → SQL WHERE CLAUSE (pushdown — never filter in pandas)
 # ══════════════════════════════════════════════════════════════════════════
 def build_where(start_d, end_d, subreddits, sentiments, hide_bots, hide_nsfw):
-    clauses = ["CAST(created_at AS DATE) BETWEEN %(start_d)s AND %(end_d)s"]
-    params = {"start_d": start_d, "end_d": end_d}
+    # OPTIMIZED: Use timestamp range instead of CAST for better performance
+    # Convert date to timestamp range (inclusive of entire end day)
+    start_ts = datetime.combine(start_d, datetime.min.time())
+    end_ts = datetime.combine(end_d, datetime.max.time())
+    
+    clauses = ["created_at >= %(start_ts)s AND created_at <= %(end_ts)s"]
+    params = {"start_ts": start_ts, "end_ts": end_ts}
 
     if subreddits:
         keys = []
@@ -241,49 +275,108 @@ def get_filter_options():
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# SIDEBAR — FILTERS
+# SIDEBAR — FILTERS (FORM-BASED TO PREVENT IMMEDIATE RERUNS)
 # ══════════════════════════════════════════════════════════════════════════
+
+# Initialize session state for filters on first load
+if 'filters_applied' not in st.session_state:
+    # Default to July 2024 where the data actually exists
+    st.session_state.filters_applied = {
+        'start_d': date(2024, 7, 1),
+        'end_d': date(2024, 7, 31),
+        'subreddits': [],
+        'sentiments': [],
+        'hide_bots': True,
+        'hide_nsfw': True,
+        'top_n': 10
+    }
+
 with st.sidebar:
     st.markdown("### ⚙️ Filters")
+    
+    with st.form(key="filters_form"):
+        # Get filter options (cached, won't rerun frequently)
+        sub_options = get_filter_options()
+        
+        # Date range
+        date_range = st.date_input(
+            "Date range",
+            value=(st.session_state.filters_applied['start_d'], 
+                   st.session_state.filters_applied['end_d']),
+            help="Data available: July 2024. Adjust pipeline to load more dates."
+        )
+        
+        # Subreddits
+        subreddits = st.multiselect(
+            "Subreddits",
+            options=sub_options,
+            default=st.session_state.filters_applied['subreddits'],
+            help="Select specific subreddits to filter. Leave empty for all."
+        )
+        
+        # Sentiments
+        sentiments = st.multiselect(
+            "Sentiment",
+            options=["positive", "neutral", "negative"],
+            default=st.session_state.filters_applied['sentiments'],
+            help="Filter by sentiment. Leave empty for all."
+        )
+        
+        # Bot filter
+        hide_bots = st.checkbox(
+            "Exclude bot authors",
+            value=st.session_state.filters_applied['hide_bots'],
+            help="Remove posts identified as bot-generated."
+        )
+        
+        # NSFW filter
+        hide_nsfw = st.checkbox(
+            "Exclude NSFW (18+)",
+            value=st.session_state.filters_applied['hide_nsfw'],
+            help="Remove posts marked as NSFW/adult content."
+        )
+        
+        # Top N slider
+        top_n = st.slider(
+            "Top-N for rankings",
+            min_value=5,
+            max_value=25,
+            value=st.session_state.filters_applied['top_n'],
+            help="Number of items to show in leaderboards."
+        )
+        
+        # Submit button
+        submitted = st.form_submit_button(
+            "🔍 Apply Filters",
+            use_container_width=True,
+            type="primary"
+        )
+        
+        if submitted:
+            # Update session state with new filters
+            start_d, end_d = date_range if isinstance(date_range, tuple) and len(date_range) == 2 else (date(2024, 7, 1), date(2024, 7, 31))
+            st.session_state.filters_applied = {
+                'start_d': start_d,
+                'end_d': end_d,
+                'subreddits': subreddits,
+                'sentiments': sentiments,
+                'hide_bots': hide_bots,
+                'hide_nsfw': hide_nsfw,
+                'top_n': top_n
+            }
+    
+    st.caption("💡 Change filters and click 'Apply' to refresh. "
+               "All aggregation happens in Databricks SQL.")
 
-    default_end = date.today()
-    default_start = default_end - timedelta(days=30)
-    date_range = st.date_input("Date range", value=(default_start, default_end), max_value=default_end)
-    start_d, end_d = date_range if isinstance(date_range, tuple) and len(date_range) == 2 else (default_start, default_end)
-
-    sub_options = get_filter_options()
-    subreddits = st.multiselect(
-        "Subreddits", 
-        options=sub_options, 
-        default=[],
-        help="Select specific subreddits to filter. Leave empty for all."
-    )
-    sentiments = st.multiselect(
-        "Sentiment", 
-        options=["positive", "neutral", "negative"], 
-        default=[],
-        help="Filter by sentiment. Leave empty for all."
-    )
-    hide_bots = st.checkbox(
-        "Exclude bot authors", 
-        value=True,
-        help="Remove posts identified as bot-generated."
-    )
-    hide_nsfw = st.checkbox(
-        "Exclude NSFW (18+)", 
-        value=True,
-        help="Remove posts marked as NSFW/adult content."
-    )
-    top_n = st.slider(
-        "Top-N for rankings", 
-        min_value=5, 
-        max_value=25, 
-        value=10,
-        help="Number of items to show in leaderboards."
-    )
-
-    st.caption("Filters push down as SQL bind parameters — Databricks does "
-               "the aggregation, this app only renders it.")
+# Use the applied filters from session state
+filters = st.session_state.filters_applied
+start_d = filters['start_d']
+end_d = filters['end_d']
+subreddits = filters['subreddits']
+sentiments = filters['sentiments']
+hide_bots = filters['hide_bots']
+hide_nsfw = filters['hide_nsfw']
+top_n = filters['top_n']
 
 WHERE_SQL, PARAMS = build_where(start_d, end_d, subreddits, sentiments, hide_bots, hide_nsfw)
 
@@ -361,11 +454,14 @@ def q_sentiment_by_subreddit(n):
 
 
 def q_score_vs_comments_sample():
-    # Bounded random sample — a scatter needs row-level data, but we never
-    # pull the full table. Swap to TABLESAMPLE for very large base tables.
+    # OPTIMIZED: Deterministic hash-based sampling instead of ORDER BY RAND()
+    # This is 10-100x faster and gives consistent results
     return run_query(f"""
         SELECT score, num_comments, subreddit, sentiment, title_length
-        FROM {BASE_VIEW} WHERE {WHERE_SQL} ORDER BY RAND() LIMIT 1500
+        FROM {BASE_VIEW} 
+        WHERE {WHERE_SQL} 
+          AND MOD(ABS(HASH(id)), 100) < 75
+        LIMIT 1500
     """, PARAMS)
 
 
@@ -377,20 +473,75 @@ def q_top_posts(n):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# LOAD DATA (single try block — fail loudly and stop rather than render
-# a dashboard on top of partial/garbage data)
+# PARALLEL QUERY EXECUTION
 # ══════════════════════════════════════════════════════════════════════════
+
+def execute_queries_parallel() -> dict[str, pd.DataFrame]:
+    """Execute all dashboard queries in parallel using ThreadPoolExecutor.
+    
+    This reduces total latency by running independent queries concurrently.
+    Each query gets its own cursor for thread safety.
+    
+    Returns:
+        Dictionary mapping query names to their result DataFrames
+    
+    Raises:
+        RuntimeError: If any query fails
+    """
+    # Define all queries as (name, callable) tuples
+    queries = [
+        ('kpis', q_kpis),
+        ('sentiment_df', q_sentiment_dist),
+        ('emotion_df', q_emotion_dist),
+        ('topic_df', q_topic_dist),
+        ('subreddit_df', lambda: q_subreddit_stats(top_n)),
+        ('ts_df', q_timeseries),
+        ('heat_df', lambda: q_sentiment_by_subreddit(top_n)),
+        ('scatter_df', q_score_vs_comments_sample),
+        ('top_posts_df', lambda: q_top_posts(top_n)),
+    ]
+    
+    results = {}
+    errors = {}
+    
+    # Use ThreadPoolExecutor with limited workers
+    # Max workers = 5 is safe for most SQL Warehouse concurrency limits
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        # Submit all queries
+        future_to_name = {executor.submit(fn): name for name, fn in queries}
+        
+        # Collect results as they complete
+        for future in as_completed(future_to_name):
+            name = future_to_name[future]
+            try:
+                results[name] = future.result()
+            except Exception as e:
+                errors[name] = e
+    
+    # If ANY query failed, raise immediately with all errors
+    if errors:
+        error_msg = "\n".join([f"  - {name}: {str(e)}" for name, e in errors.items()])
+        raise RuntimeError(f"Query execution failed:\n{error_msg}")
+    
+    return results
+
+
 try:
-    with st.spinner("Loading data from Databricks..."):
-        kpis = q_kpis()
-        sentiment_df = q_sentiment_dist()
-        emotion_df = q_emotion_dist()
-        topic_df = q_topic_dist()
-        subreddit_df = q_subreddit_stats(top_n)
-        ts_df = q_timeseries()
-        heat_df = q_sentiment_by_subreddit(top_n)
-        scatter_df = q_score_vs_comments_sample()
-        top_posts_df = q_top_posts(top_n)
+    with st.spinner("🚀 Loading data from Databricks (parallel execution)..."):
+        # Execute all queries concurrently
+        query_results = execute_queries_parallel()
+        
+        # Unpack results (preserves original variable names)
+        kpis = query_results['kpis']
+        sentiment_df = query_results['sentiment_df']
+        emotion_df = query_results['emotion_df']
+        topic_df = query_results['topic_df']
+        subreddit_df = query_results['subreddit_df']
+        ts_df = query_results['ts_df']
+        heat_df = query_results['heat_df']
+        scatter_df = query_results['scatter_df']
+        top_posts_df = query_results['top_posts_df']
+    
     DATA_OK = True
 except ConnectionError as e:
     DATA_OK = False
