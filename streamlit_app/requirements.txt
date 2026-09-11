@@ -1,15 +1,10 @@
-# Streamlit web framework
-streamlit>=1.37,<2.0
-
-# Databricks SQL connector
-databricks-sql-connector>=3.4.0,<4.0
-
-# Data processing
-pandas>=2.2,<3.0
-numpy>=1.24,<2.0
-
-# Visualization
-plotly>=5.20,<6.0
-
-# For better error messages
-rich>=13.0,<14.0
+streamlit
+pandas
+numpy
+plotly
+requests
+scikit-learn
+transformers
+torch
+groq
+sentencepiece
