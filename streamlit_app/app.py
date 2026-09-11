@@ -1401,7 +1401,7 @@ def generate_word_cloud(df):
         figsize=(10, 5)
     )
 
-    fig.patch.set_facecolor="#111111")
+    fig.patch.set_facecolor="#111111"
     ax.set_facecolor("#111111")
 
     ax.imshow(
