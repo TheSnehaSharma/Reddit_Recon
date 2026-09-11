@@ -1,0 +1,12 @@
+streamlit
+pandas
+numpy
+plotly
+matplotlib
+requests
+scikit-learn
+transformers
+torch
+groq
+sentencepiece
+wordcloud
