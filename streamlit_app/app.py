@@ -44,20 +44,9 @@ EMBEDDING_BATCH_SIZE = 32
 
 st.set_page_config(
     page_title="Reddit Recon",
-    page_icon=":material/search:",
+    page_icon="https://www.reddit.com/favicon.ico",
     layout="wide",
     initial_sidebar_state="expanded",
-)
-
-
-st.markdown(
-    """
-<link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
->
-""",
-    unsafe_allow_html=True,
 )
 
 
@@ -1513,6 +1502,18 @@ def generate_word_cloud(df):
 # SIDEBAR
 # ============================================================
 
+# Font Awesome stylesheet — loaded separately with st.markdown
+st.markdown(
+    """
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+>
+""",
+    unsafe_allow_html=True,
+)
+
+# Reddit Font Awesome icon — separate from st.html
 st.sidebar.markdown(
     """
 <div class="reddit-sidebar-icon">
@@ -1653,6 +1654,8 @@ if submitted:
 
             result["raw"] = raw_df
 
+            # IMPORTANT:
+            # Store the complete result in one place.
             st.session_state[
                 "result"
             ] = result
@@ -1683,12 +1686,20 @@ if submitted:
 # ============================================================
 
 if "result" not in st.session_state:
+    st.markdown(
+        """
+<div class="reddit-icon">
+    <i class="fa-brands fa-reddit" aria-hidden="true"></i>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 
-    st.markdown("""
+    st.html(
+        """
 <div class="reddit-header">
 
     <div class="reddit-icon">
-        <i class="fa-brands fa-reddit" aria-hidden="true"></i>
     </div>
 
     <div>
@@ -1701,8 +1712,7 @@ if "result" not in st.session_state:
     </div>
 
 </div>
-""",
-        unsafe_allow_html=True,
+"""
     )
 
     st.write(
@@ -1793,11 +1803,20 @@ SUBREDDIT = st.session_state.get(
 # MAIN HEADER
 # ============================================================
 
-st.markdown(f"""
+st.markdown(
+    """
+<div class="reddit-icon">
+    <i class="fa-brands fa-reddit" aria-hidden="true"></i>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+st.html(
+    f"""
 <div class="reddit-header">
 
     <div class="reddit-icon">
-        <i class="fa-brands fa-reddit" aria-hidden="true"></i>
     </div>
 
     <div>
@@ -1814,8 +1833,7 @@ st.markdown(f"""
     </div>
 
 </div>
-""",
-    unsafe_allow_html=True,
+"""
 )
 
 
@@ -2003,6 +2021,11 @@ with tab1:
                 "avg_score": "Average Score",
                 "posts": "Volume of Posts",
             },
+            color="Topic Name",
+            color_discrete_map={
+                name: ["#ff6b6b", "#4dabf7", "#51cf66", "#fcc419", "#cc5de8", "#20c997", "#ff922b", "#845ef7", "#22b8cf", "#f06595"][i % 10]
+                for i, name in enumerate(topic_eng["Topic Name"])
+            },
         )
 
         fig4.update_traces(
@@ -2088,6 +2111,8 @@ with tab1:
                 "posts": "Number of Posts",
                 "Topic Name": "",
             },
+            color="Topic Name",
+            color_discrete_sequence=["#ff6b6b", "#4dabf7", "#51cf66", "#fcc419", "#cc5de8", "#20c997", "#ff922b", "#845ef7", "#22b8cf", "#f06595"],
         )
 
         fig_topic_volume.update_traces(
@@ -2138,6 +2163,8 @@ with tab1:
                 "avg_comments": "Average Comments",
                 "Topic Name": "",
             },
+            color="Topic Name",
+            color_discrete_sequence=["#ff6b6b", "#4dabf7", "#51cf66", "#fcc419", "#cc5de8", "#20c997", "#ff922b", "#845ef7", "#22b8cf", "#f06595"],
         )
 
         fig_topic_comments.update_traces(
@@ -2171,142 +2198,178 @@ with tab1:
 
 
     # ========================================================
-    # SENTIMENT BREAKDOWN
-    # ========================================================
-
-    st.markdown("---")
-    st.subheader("Sentiment Breakdown")
-
-    # --------------------------------------------------------
-    # SENTIMENT COUNTS
-    # --------------------------------------------------------
-
-    sentiment_counts = (
-        analysis_df["sentiment"]
-        .value_counts()
-        .reset_index()
-    )
-
-    sentiment_counts.columns = [
-        "sentiment",
-        "count",
-    ]
-
-    sentiment_counts["Sentiment"] = (
-        sentiment_counts["sentiment"]
-        .str.capitalize()
-    )
-
-    fig_sentiment_count = px.bar(
-        sentiment_counts,
-        x="Sentiment",
-        y="count",
-        text="count",
-        title="Number of Posts by Sentiment",
-        labels={
-            "count": "Posts",
-            "Sentiment": "",
-        },
-    )
-
-    fig_sentiment_count.update_traces(
-        textposition="outside"
-    )
-
-    fig_sentiment_count.update_layout(
-        paper_bgcolor="#111111",
-        plot_bgcolor="#111111",
-        font=dict(color="white"),
-        margin=dict(
-            t=60,
-            b=40,
-            l=40,
-            r=20,
-        ),
-        xaxis=dict(
-            gridcolor="#2a2a2a",
-        ),
-        yaxis=dict(
-            gridcolor="#2a2a2a",
-        ),
-        showlegend=False,
-    )
-
-    st.plotly_chart(
-        fig_sentiment_count,
-        use_container_width=True,
-    )
-
-
-    # ========================================================
-    # ENGAGEMENT ANALYSIS
+    # FINAL TWO CHARTS — SIDE BY SIDE
     # ========================================================
 
     st.markdown("---")
 
-    st.subheader("Engagement Analysis")
+    st.subheader("Sentiment & Engagement")
 
-    engagement_chart = (
-        analysis_df
-        .groupby("topic_id")
-        .agg(
-            total_engagement=("engagement", "sum"),
-            average_engagement=("engagement", "mean"),
-            posts=("id", "count"),
+    final_chart_col1, final_chart_col2 = st.columns(2)
+
+    # --------------------------------------------------------
+    # NUMBER OF POSTS BY SENTIMENT
+    # --------------------------------------------------------
+
+    with final_chart_col1:
+
+        sentiment_counts = (
+            analysis_df["sentiment"]
+            .value_counts()
+            .reset_index()
         )
-        .reset_index()
-    )
 
-    engagement_chart["Topic Name"] = (
-        engagement_chart["topic_id"]
-        .map(topic_names_map)
-        .fillna(
+        sentiment_counts.columns = [
+            "sentiment",
+            "count",
+        ]
+
+        sentiment_counts["Sentiment"] = (
+            sentiment_counts["sentiment"]
+            .str.capitalize()
+        )
+
+        sentiment_colors = {
+            "Positive": "#2ecc71",
+            "Neutral": "#f1c40f",
+            "Negative": "#e74c3c",
+        }
+
+        fig_sentiment_count = px.bar(
+            sentiment_counts,
+            x="Sentiment",
+            y="count",
+            text="count",
+            title="Number of Posts by Sentiment",
+            labels={
+                "count": "Posts",
+                "Sentiment": "",
+            },
+            color="Sentiment",
+            color_discrete_map=sentiment_colors,
+        )
+
+        fig_sentiment_count.update_traces(
+            textposition="outside"
+        )
+
+        fig_sentiment_count.update_layout(
+            paper_bgcolor="#111111",
+            plot_bgcolor="#111111",
+            font=dict(color="white"),
+            margin=dict(
+                t=60,
+                b=40,
+                l=40,
+                r=20,
+            ),
+            xaxis=dict(
+                gridcolor="#2a2a2a",
+            ),
+            yaxis=dict(
+                gridcolor="#2a2a2a",
+            ),
+            showlegend=False,
+        )
+
+        st.plotly_chart(
+            fig_sentiment_count,
+            use_container_width=True,
+        )
+
+
+    # --------------------------------------------------------
+    # TOPIC ENGAGEMENT VS VOLUME
+    # --------------------------------------------------------
+
+    with final_chart_col2:
+
+        engagement_chart = (
+            analysis_df
+            .groupby("topic_id")
+            .agg(
+                total_engagement=("engagement", "sum"),
+                average_engagement=("engagement", "mean"),
+                posts=("id", "count"),
+            )
+            .reset_index()
+        )
+
+        engagement_chart["Topic Name"] = (
             engagement_chart["topic_id"]
-            .apply(lambda x: f"Topic {x}")
+            .map(topic_names_map)
+            .fillna(
+                engagement_chart["topic_id"]
+                .apply(lambda x: f"Topic {x}")
+            )
         )
-    )
 
-    fig_engagement = px.scatter(
-        engagement_chart,
-        x="posts",
-        y="average_engagement",
-        size="total_engagement",
-        hover_name="Topic Name",
-        text="Topic Name",
-        title="Topic Engagement vs. Volume",
-        labels={
-            "posts": "Number of Posts",
-            "average_engagement": "Average Engagement",
-            "total_engagement": "Total Engagement",
-        },
-    )
+        topic_palette = [
+            "#ff6b6b",
+            "#4dabf7",
+            "#51cf66",
+            "#fcc419",
+            "#cc5de8",
+            "#20c997",
+            "#ff922b",
+            "#845ef7",
+            "#22b8cf",
+            "#f06595",
+        ]
 
-    fig_engagement.update_traces(
-        textposition="top center"
-    )
+        topic_color_map = {
+            name: topic_palette[index % len(topic_palette)]
+            for index, name in enumerate(
+                engagement_chart["Topic Name"]
+            )
+        }
 
-    fig_engagement.update_layout(
-        paper_bgcolor="#111111",
-        plot_bgcolor="#111111",
-        font=dict(color="white"),
-        margin=dict(
-            t=60,
-            b=50,
-            l=50,
-            r=30,
-        ),
-        xaxis=dict(
-            gridcolor="#2a2a2a",
-        ),
-        yaxis=dict(
-            gridcolor="#2a2a2a",
-        ),
-    )
+        fig_engagement = px.scatter(
+            engagement_chart,
+            x="posts",
+            y="average_engagement",
+            size="total_engagement",
+            hover_name="Topic Name",
+            text="Topic Name",
+            title="Topic Engagement vs. Volume",
+            labels={
+                "posts": "Number of Posts",
+                "average_engagement": "Average Engagement",
+                "total_engagement": "Total Engagement",
+            },
+            color="Topic Name",
+            color_discrete_map=topic_color_map,
+        )
 
-    st.plotly_chart(
-        fig_engagement,
-        use_container_width=True,
-    )
+        fig_engagement.update_traces(
+            textposition="top center"
+        )
+
+        fig_engagement.update_layout(
+            paper_bgcolor="#111111",
+            plot_bgcolor="#111111",
+            font=dict(color="white"),
+            margin=dict(
+                t=60,
+                b=50,
+                l=50,
+                r=30,
+            ),
+            xaxis=dict(
+                gridcolor="#2a2a2a",
+            ),
+            yaxis=dict(
+                gridcolor="#2a2a2a",
+            ),
+            legend=dict(
+                font=dict(color="white")
+            ),
+        )
+
+        st.plotly_chart(
+            fig_engagement,
+            use_container_width=True,
+        )
 
 
 # ============================================================
