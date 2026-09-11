@@ -42,11 +42,12 @@ EMBEDDING_BATCH_SIZE = 32
 
 # ============================================================
 # PAGE CONFIG
+# Official Reddit favicon — browser/page icon only
 # ============================================================
 
 st.set_page_config(
     page_title="Reddit Recon",
-    page_icon="🤖",
+    page_icon="https://www.redditstatic.com/desktop2x/img/favicon/favicon-96x96.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -122,6 +123,12 @@ section[data-testid="stSidebar"] * {
     margin-right: 20px;
     color: #ffffff;
     line-height: 1;
+    width: 58px;
+    flex-shrink: 0;
+}
+
+.reddit-header .reddit-icon i {
+    color: #ffffff !important;
 }
 
 .reddit-header h1 {
@@ -143,18 +150,34 @@ section[data-testid="stSidebar"] * {
    ======================================================== */
 
 .reddit-card {
-    background: #111111;
+    background: #151515;
     border: 1px solid #2a2a2a;
-    border-radius: 6px;
+    border-radius: 10px;
     padding: 1.25rem;
     margin-bottom: 1rem;
+}
+
+.reddit-card h2 {
+    margin-top: 0;
+    font-size: 2rem;
+}
+
+.reddit-card h4 {
+    margin-bottom: 0.25rem;
+    color: #bdbdbd !important;
 }
 
 .topic-title {
     color: #ffffff !important;
     font-weight: 700;
     font-size: 1.35rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.topic-title::before {
+    content: "●";
+    margin-right: 10px;
+    color: #ff4500;
 }
 
 /* ========================================================
@@ -163,13 +186,15 @@ section[data-testid="stSidebar"] * {
 
 .badge {
     display: inline-block;
-    padding: 0.15rem 0.65rem;
+    padding: 0.25rem 0.7rem;
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 700;
     color: #ffffff !important;
     margin-right: 0.5rem;
+    margin-bottom: 0.4rem;
     border: 1px solid #444444;
+    background: #1c1c1c;
 }
 
 /* ========================================================
@@ -229,6 +254,23 @@ hr {
     color: #ffffff !important;
 }
 
+[data-testid="stMetric"] {
+    background: #151515;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+[data-testid="stMetricValue"] {
+    color: #ffffff !important;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+[data-testid="stMetricLabel"] {
+    color: #bdbdbd !important;
+}
+
 /* ========================================================
    CAPTIONS / INFO
    ======================================================== */
@@ -248,6 +290,53 @@ div[data-baseweb="select"] * {
 
 div[data-baseweb="input"] * {
     color: #ffffff !important;
+}
+
+/* ========================================================
+   PLOTLY
+   ======================================================== */
+
+.js-plotly-plot {
+    border-radius: 8px;
+}
+
+/* ========================================================
+   SIDEBAR REDDIT ICON
+   ======================================================== */
+
+.reddit-sidebar-icon {
+    font-size: 46px;
+    text-align: center;
+    margin: 10px 0 20px 0;
+}
+
+.reddit-sidebar-icon i {
+    color: #ffffff !important;
+}
+
+/* ========================================================
+   SMALL DASHBOARD LABEL
+   ======================================================== */
+
+.section-label {
+    color: #aaaaaa !important;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/* ========================================================
+   TOP POST LIST
+   ======================================================== */
+
+.top-post-link {
+    color: #ffffff !important;
+    text-decoration: none;
+}
+
+.top-post-link:hover {
+    text-decoration: underline;
 }
 
 </style>
@@ -282,7 +371,6 @@ def get_groq_key():
 def sentiment_badge(label, pct=None):
     text = label.capitalize() if pct is None else f"{label.capitalize()} {pct:.0f}%"
 
-    # White-only theme
     return (
         f'<span class="badge">{html.escape(text)}</span>'
     )
@@ -1360,6 +1448,7 @@ def run_nlp_pipeline(
 
 # ============================================================
 # WORD CLOUD
+# UI CHANGE ONLY — COLORED
 # ============================================================
 
 def generate_word_cloud(df):
@@ -1390,18 +1479,22 @@ def generate_word_cloud(df):
     })
 
     wordcloud = WordCloud(
-        width=800,
-        height=400,
+        width=1200,
+        height=550,
         background_color="#111111",
         stopwords=stopwords,
-        color_func=lambda *args, **kwargs: "white",
+        colormap="turbo",
+        max_words=150,
+        min_font_size=10,
+        max_font_size=100,
+        prefer_horizontal=0.9,
     ).generate(text)
 
     fig, ax = plt.subplots(
-        figsize=(10, 5)
+        figsize=(12, 5.5)
     )
 
-    fig.patch.set_facecolor="#111111"
+    fig.patch.set_facecolor("#111111")
     ax.set_facecolor("#111111")
 
     ax.imshow(
@@ -1411,6 +1504,10 @@ def generate_word_cloud(df):
 
     ax.axis("off")
 
+    plt.tight_layout(
+        pad=0
+    )
+
     return fig
 
 
@@ -1418,13 +1515,15 @@ def generate_word_cloud(df):
 # SIDEBAR
 # ============================================================
 
+# Font Awesome icon — stays on page
 st.sidebar.html(
     """
-<div style="
-    font-size: 46px;
-    text-align: center;
-    margin: 10px 0 20px 0;
-">
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+>
+
+<div class="reddit-sidebar-icon">
     <i class="fa-brands fa-reddit"></i>
 </div>
 """
@@ -1597,6 +1696,7 @@ if "result" not in st.session_state:
     st.html(
         """
 <div class="reddit-header">
+
     <div class="reddit-icon">
         <i class="fa-brands fa-reddit"></i>
     </div>
@@ -1609,6 +1709,7 @@ if "result" not in st.session_state:
             sentiment and engagement analysis.
         </p>
     </div>
+
 </div>
 """
     )
@@ -1699,6 +1800,7 @@ SUBREDDIT = st.session_state.get(
 
 # ============================================================
 # MAIN HEADER
+# Font Awesome icon — NOT Reddit image
 # ============================================================
 
 st.html(
@@ -1745,6 +1847,10 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
 
+    # ========================================================
+    # KPI CARDS
+    # ========================================================
+
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -1752,7 +1858,7 @@ with tab1:
         st.html(
             f"""
 <div class="reddit-card">
-    <h4>Total Fetched</h4>
+    <div class="section-label">Total Fetched</div>
     <h2>{len(raw_df):,}</h2>
 </div>
 """
@@ -1763,7 +1869,7 @@ with tab1:
         st.html(
             f"""
 <div class="reddit-card">
-    <h4>NLP Analyzed</h4>
+    <div class="section-label">NLP Analyzed</div>
     <h2>{len(analysis_df):,}</h2>
 </div>
 """
@@ -1774,7 +1880,7 @@ with tab1:
         st.html(
             f"""
 <div class="reddit-card">
-    <h4>Topics Discovered</h4>
+    <div class="section-label">Topics Discovered</div>
     <h2>{best_k if best_k else "N/A"}</h2>
 </div>
 """
@@ -1794,13 +1900,22 @@ with tab1:
         st.html(
             f"""
 <div class="reddit-card">
-    <h4>Positivity</h4>
+    <div class="section-label">Positivity</div>
     <h2>{pos_pct:.1f}%</h2>
 </div>
 """
         )
 
+
+    # ========================================================
+    # FIRST ROW — SENTIMENT + TOPIC ENGAGEMENT
+    # ========================================================
+
     c1, c2 = st.columns(2)
+
+    # --------------------------------------------------------
+    # SENTIMENT PIE
+    # --------------------------------------------------------
 
     with c1:
 
@@ -1831,6 +1946,9 @@ with tab1:
                 paper_bgcolor="#111111",
                 plot_bgcolor="#111111",
                 font=dict(color="white"),
+                legend=dict(
+                    font=dict(color="white")
+                ),
             )
 
             st.plotly_chart(
@@ -1841,6 +1959,11 @@ with tab1:
         st.html(
             "</div>"
         )
+
+
+    # --------------------------------------------------------
+    # TOPIC ENGAGEMENT SCATTER
+    # --------------------------------------------------------
 
     with c2:
 
@@ -1873,6 +1996,10 @@ with tab1:
         topic_eng["Topic Name"] = (
             topic_eng["topic_id"]
             .map(topic_names_map)
+            .fillna(
+                topic_eng["topic_id"]
+                .apply(lambda x: f"Topic {x}")
+            )
         )
 
         fig4 = px.scatter(
@@ -1881,23 +2008,34 @@ with tab1:
             y="posts",
             size="posts",
             hover_name="Topic Name",
+            text="Topic Name",
             labels={
                 "avg_score": "Average Score",
                 "posts": "Volume of Posts",
             },
         )
 
+        fig4.update_traces(
+            textposition="top center"
+        )
+
         fig4.update_layout(
             margin=dict(
-                t=0,
-                b=0,
-                l=0,
-                r=0,
+                t=20,
+                b=20,
+                l=20,
+                r=20,
             ),
             paper_bgcolor="#111111",
             plot_bgcolor="#111111",
             font=dict(color="white"),
             showlegend=False,
+            xaxis=dict(
+                gridcolor="#2a2a2a",
+            ),
+            yaxis=dict(
+                gridcolor="#2a2a2a",
+            ),
         )
 
         st.plotly_chart(
@@ -1908,6 +2046,350 @@ with tab1:
         st.html(
             "</div>"
         )
+
+
+    # ========================================================
+    # COMMUNITY ACTIVITY
+    # ========================================================
+
+    st.markdown("---")
+
+    st.subheader("Community Activity")
+
+    chart_col1, chart_col2 = st.columns(2)
+
+    # --------------------------------------------------------
+    # POSTS BY TOPIC
+    # --------------------------------------------------------
+
+    with chart_col1:
+
+        topic_volume = (
+            analysis_df
+            .groupby("topic_id")
+            .agg(
+                posts=("id", "count"),
+                avg_score=("score", "mean"),
+                avg_comments=("num_comments", "mean"),
+                total_engagement=("engagement", "sum"),
+            )
+            .reset_index()
+        )
+
+        topic_volume["Topic Name"] = (
+            topic_volume["topic_id"]
+            .map(topic_names_map)
+            .fillna(
+                topic_volume["topic_id"]
+                .apply(lambda x: f"Topic {x}")
+            )
+        )
+
+        fig_topic_volume = px.bar(
+            topic_volume.sort_values(
+                "posts",
+                ascending=False,
+            ),
+            x="Topic Name",
+            y="posts",
+            text="posts",
+            title="Posts by Topic",
+            labels={
+                "posts": "Number of Posts",
+                "Topic Name": "",
+            },
+        )
+
+        fig_topic_volume.update_traces(
+            textposition="outside"
+        )
+
+        fig_topic_volume.update_layout(
+            paper_bgcolor="#111111",
+            plot_bgcolor="#111111",
+            font=dict(color="white"),
+            margin=dict(
+                t=60,
+                b=70,
+                l=40,
+                r=20,
+            ),
+            xaxis=dict(
+                tickangle=-25,
+                gridcolor="#2a2a2a",
+            ),
+            yaxis=dict(
+                gridcolor="#2a2a2a",
+            ),
+        )
+
+        st.plotly_chart(
+            fig_topic_volume,
+            use_container_width=True,
+        )
+
+
+    # --------------------------------------------------------
+    # COMMENTS BY TOPIC
+    # --------------------------------------------------------
+
+    with chart_col2:
+
+        fig_topic_comments = px.bar(
+            topic_volume.sort_values(
+                "avg_comments",
+                ascending=False,
+            ),
+            x="Topic Name",
+            y="avg_comments",
+            text="avg_comments",
+            title="Average Comments by Topic",
+            labels={
+                "avg_comments": "Average Comments",
+                "Topic Name": "",
+            },
+        )
+
+        fig_topic_comments.update_traces(
+            texttemplate="%{text:.1f}",
+            textposition="outside",
+        )
+
+        fig_topic_comments.update_layout(
+            paper_bgcolor="#111111",
+            plot_bgcolor="#111111",
+            font=dict(color="white"),
+            margin=dict(
+                t=60,
+                b=70,
+                l=40,
+                r=20,
+            ),
+            xaxis=dict(
+                tickangle=-25,
+                gridcolor="#2a2a2a",
+            ),
+            yaxis=dict(
+                gridcolor="#2a2a2a",
+            ),
+        )
+
+        st.plotly_chart(
+            fig_topic_comments,
+            use_container_width=True,
+        )
+
+
+    # ========================================================
+    # SENTIMENT BREAKDOWN
+    # ========================================================
+
+    st.markdown("---")
+
+    st.subheader("Sentiment Breakdown")
+
+    sentiment_chart_col1, sentiment_chart_col2 = st.columns(2)
+
+    # --------------------------------------------------------
+    # SENTIMENT %
+    # --------------------------------------------------------
+
+    with sentiment_chart_col1:
+
+        if not sentiment.empty:
+
+            sentiment_plot = sentiment.copy()
+
+            sentiment_plot["Sentiment"] = (
+                sentiment_plot["sentiment"]
+                .str.capitalize()
+            )
+
+            fig_sentiment = px.bar(
+                sentiment_plot,
+                x="Sentiment",
+                y="percentage",
+                text="percentage",
+                title="Sentiment Percentage",
+                labels={
+                    "percentage": "Percentage",
+                    "Sentiment": "",
+                },
+            )
+
+            fig_sentiment.update_traces(
+                texttemplate="%{text:.1f}%",
+                textposition="outside",
+            )
+
+            fig_sentiment.update_layout(
+                paper_bgcolor="#111111",
+                plot_bgcolor="#111111",
+                font=dict(color="white"),
+                margin=dict(
+                    t=60,
+                    b=40,
+                    l=40,
+                    r=20,
+                ),
+                yaxis=dict(
+                    gridcolor="#2a2a2a",
+                    range=[
+                        0,
+                        max(
+                            100,
+                            float(
+                                sentiment_plot[
+                                    "percentage"
+                                ].max()
+                            ) + 10,
+                        ),
+                    ],
+                ),
+                xaxis=dict(
+                    gridcolor="#2a2a2a",
+                ),
+                showlegend=False,
+            )
+
+            st.plotly_chart(
+                fig_sentiment,
+                use_container_width=True,
+            )
+
+
+    # --------------------------------------------------------
+    # SENTIMENT COUNTS
+    # --------------------------------------------------------
+
+    with sentiment_chart_col2:
+
+        sentiment_counts = (
+            analysis_df["sentiment"]
+            .value_counts()
+            .reset_index()
+        )
+
+        sentiment_counts.columns = [
+            "sentiment",
+            "count",
+        ]
+
+        sentiment_counts["Sentiment"] = (
+            sentiment_counts["sentiment"]
+            .str.capitalize()
+        )
+
+        fig_sentiment_count = px.bar(
+            sentiment_counts,
+            x="Sentiment",
+            y="count",
+            text="count",
+            title="Number of Posts by Sentiment",
+            labels={
+                "count": "Posts",
+                "Sentiment": "",
+            },
+        )
+
+        fig_sentiment_count.update_traces(
+            textposition="outside"
+        )
+
+        fig_sentiment_count.update_layout(
+            paper_bgcolor="#111111",
+            plot_bgcolor="#111111",
+            font=dict(color="white"),
+            margin=dict(
+                t=60,
+                b=40,
+                l=40,
+                r=20,
+            ),
+            xaxis=dict(
+                gridcolor="#2a2a2a",
+            ),
+            yaxis=dict(
+                gridcolor="#2a2a2a",
+            ),
+            showlegend=False,
+        )
+
+        st.plotly_chart(
+            fig_sentiment_count,
+            use_container_width=True,
+        )
+
+
+    # ========================================================
+    # ENGAGEMENT ANALYSIS
+    # ========================================================
+
+    st.markdown("---")
+
+    st.subheader("Engagement Analysis")
+
+    engagement_chart = (
+        analysis_df
+        .groupby("topic_id")
+        .agg(
+            total_engagement=("engagement", "sum"),
+            average_engagement=("engagement", "mean"),
+            posts=("id", "count"),
+        )
+        .reset_index()
+    )
+
+    engagement_chart["Topic Name"] = (
+        engagement_chart["topic_id"]
+        .map(topic_names_map)
+        .fillna(
+            engagement_chart["topic_id"]
+            .apply(lambda x: f"Topic {x}")
+        )
+    )
+
+    fig_engagement = px.scatter(
+        engagement_chart,
+        x="posts",
+        y="average_engagement",
+        size="total_engagement",
+        hover_name="Topic Name",
+        text="Topic Name",
+        title="Topic Engagement vs. Volume",
+        labels={
+            "posts": "Number of Posts",
+            "average_engagement": "Average Engagement",
+            "total_engagement": "Total Engagement",
+        },
+    )
+
+    fig_engagement.update_traces(
+        textposition="top center"
+    )
+
+    fig_engagement.update_layout(
+        paper_bgcolor="#111111",
+        plot_bgcolor="#111111",
+        font=dict(color="white"),
+        margin=dict(
+            t=60,
+            b=50,
+            l=50,
+            r=30,
+        ),
+        xaxis=dict(
+            gridcolor="#2a2a2a",
+        ),
+        yaxis=dict(
+            gridcolor="#2a2a2a",
+        ),
+    )
+
+    st.plotly_chart(
+        fig_engagement,
+        use_container_width=True,
+    )
 
 
 # ============================================================
@@ -1994,6 +2476,7 @@ with tab2:
                 f"""
 <li style="margin-bottom:0.7rem;">
     <a
+        class="top-post-link"
         href="{url}"
         target="_blank"
     >
@@ -2100,6 +2583,11 @@ with tab3:
         "</div>"
     )
 
+
+    # --------------------------------------------------------
+    # WORD CLOUD
+    # --------------------------------------------------------
+
     st.html(
         '<div class="reddit-card">'
     )
@@ -2185,23 +2673,29 @@ with st.sidebar.expander(
 
     st.html(
         f"""
-**Current Analysis**
+<strong>Current Analysis</strong>
 
-- **Subreddit:** r/{SUBREDDIT}
-- **Days:** {days_back}
-- **Posts fetched:** {posts_to_fetch}
-- **Posts analyzed:** {top_posts}
+<ul>
+<li><strong>Subreddit:</strong> r/{html.escape(SUBREDDIT)}</li>
+<li><strong>Days:</strong> {days_back}</li>
+<li><strong>Posts fetched:</strong> {posts_to_fetch}</li>
+<li><strong>Posts analyzed:</strong> {top_posts}</li>
+</ul>
 
-**Models**
+<strong>Models</strong>
 
-- **Sentiment:** `{SENTIMENT_MODEL}`
-- **Embeddings:** `{EMBEDDING_MODEL}`
-- **AI:** `{LLM_MODEL}`
+<ul>
+<li><strong>Sentiment:</strong> <code>{html.escape(SENTIMENT_MODEL)}</code></li>
+<li><strong>Embeddings:</strong> <code>{html.escape(EMBEDDING_MODEL)}</code></li>
+<li><strong>AI:</strong> <code>{html.escape(LLM_MODEL)}</code></li>
+</ul>
 
-**Pipeline**
+<strong>Pipeline</strong>
 
+<p>
 Reddit → Sentiment → Embeddings →
 Clustering → Topic Keywords →
 GPT-OSS Topic Analysis → Community Review
+</p>
 """
     )
