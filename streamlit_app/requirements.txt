@@ -9,3 +9,4 @@ transformers
 torch
 groq
 sentencepiece
+wordcloud
