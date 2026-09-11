@@ -1,5 +1,3 @@
-%%writefile app.py
-
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
