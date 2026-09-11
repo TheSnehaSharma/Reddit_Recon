@@ -44,9 +44,20 @@ EMBEDDING_BATCH_SIZE = 32
 
 st.set_page_config(
     page_title="Reddit Recon",
-    page_icon="https://www.reddit.com/favicon.ico",
+    page_icon=":material/search:",
     layout="wide",
     initial_sidebar_state="expanded",
+)
+
+
+st.markdown(
+    """
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+>
+""",
+    unsafe_allow_html=True,
 )
 
 
@@ -333,11 +344,6 @@ div[data-baseweb="input"] * {
 
 </style>
 
-<!-- Font Awesome -->
-<link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
->
 """
 )
 
@@ -1508,17 +1514,13 @@ def generate_word_cloud(df):
 # ============================================================
 
 # Font Awesome icon — stays on page
-st.sidebar.html(
+st.sidebar.markdown(
     """
-<link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
->
-
 <div class="reddit-sidebar-icon">
-    <i class="fa fa-reddit" aria-hidden="true"></i>
+    <i class="fa-brands fa-reddit" aria-hidden="true"></i>
 </div>
-"""
+""",
+    unsafe_allow_html=True,
 )
 
 st.sidebar.title("Recon Settings")
@@ -1685,12 +1687,12 @@ if submitted:
 
 if "result" not in st.session_state:
 
-    st.html(
+    st.markdown(
         """
 <div class="reddit-header">
 
     <div class="reddit-icon">
-        <i class="fa fa-reddit" aria-hidden="true"></i>
+        <i class="fa-brands fa-reddit" aria-hidden="true"></i>
     </div>
 
     <div>
@@ -1703,7 +1705,8 @@ if "result" not in st.session_state:
     </div>
 
 </div>
-"""
+""",
+        unsafe_allow_html=True,
     )
 
     st.write(
@@ -1794,12 +1797,12 @@ SUBREDDIT = st.session_state.get(
 # MAIN HEADER
 # ============================================================
 
-st.html(
+st.markdown(
     f"""
 <div class="reddit-header">
 
     <div class="reddit-icon">
-        <i class="fa fa-reddit" aria-hidden="true"></i>
+        <i class="fa-brands fa-reddit" aria-hidden="true"></i>
     </div>
 
     <div>
@@ -1816,7 +1819,8 @@ st.html(
     </div>
 
 </div>
-"""
+""",
+    unsafe_allow_html=True,
 )
 
 
@@ -2176,140 +2180,67 @@ with tab1:
     # ========================================================
 
     st.markdown("---")
-
     st.subheader("Sentiment Breakdown")
-
-    sentiment_chart_col1, sentiment_chart_col2 = st.columns(2)
-
-    # --------------------------------------------------------
-    # SENTIMENT %
-    # --------------------------------------------------------
-
-    with sentiment_chart_col1:
-
-        if not sentiment.empty:
-
-            sentiment_plot = sentiment.copy()
-
-            sentiment_plot["Sentiment"] = (
-                sentiment_plot["sentiment"]
-                .str.capitalize()
-            )
-
-            fig_sentiment = px.bar(
-                sentiment_plot,
-                x="Sentiment",
-                y="percentage",
-                text="percentage",
-                title="Sentiment Percentage",
-                labels={
-                    "percentage": "Percentage",
-                    "Sentiment": "",
-                },
-            )
-
-            fig_sentiment.update_traces(
-                texttemplate="%{text:.1f}%",
-                textposition="outside",
-            )
-
-            fig_sentiment.update_layout(
-                paper_bgcolor="#111111",
-                plot_bgcolor="#111111",
-                font=dict(color="white"),
-                margin=dict(
-                    t=60,
-                    b=40,
-                    l=40,
-                    r=20,
-                ),
-                yaxis=dict(
-                    gridcolor="#2a2a2a",
-                    range=[
-                        0,
-                        max(
-                            100,
-                            float(
-                                sentiment_plot[
-                                    "percentage"
-                                ].max()
-                            ) + 10,
-                        ),
-                    ],
-                ),
-                xaxis=dict(
-                    gridcolor="#2a2a2a",
-                ),
-                showlegend=False,
-            )
-
-            st.plotly_chart(
-                fig_sentiment,
-                use_container_width=True,
-            )
-
 
     # --------------------------------------------------------
     # SENTIMENT COUNTS
     # --------------------------------------------------------
 
-    with sentiment_chart_col2:
+    sentiment_counts = (
+        analysis_df["sentiment"]
+        .value_counts()
+        .reset_index()
+    )
 
-        sentiment_counts = (
-            analysis_df["sentiment"]
-            .value_counts()
-            .reset_index()
-        )
+    sentiment_counts.columns = [
+        "sentiment",
+        "count",
+    ]
 
-        sentiment_counts.columns = [
-            "sentiment",
-            "count",
-        ]
+    sentiment_counts["Sentiment"] = (
+        sentiment_counts["sentiment"]
+        .str.capitalize()
+    )
 
-        sentiment_counts["Sentiment"] = (
-            sentiment_counts["sentiment"]
-            .str.capitalize()
-        )
+    fig_sentiment_count = px.bar(
+        sentiment_counts,
+        x="Sentiment",
+        y="count",
+        text="count",
+        title="Number of Posts by Sentiment",
+        labels={
+            "count": "Posts",
+            "Sentiment": "",
+        },
+    )
 
-        fig_sentiment_count = px.bar(
-            sentiment_counts,
-            x="Sentiment",
-            y="count",
-            text="count",
-            title="Number of Posts by Sentiment",
-            labels={
-                "count": "Posts",
-                "Sentiment": "",
-            },
-        )
+    fig_sentiment_count.update_traces(
+        textposition="outside"
+    )
 
-        fig_sentiment_count.update_traces(
-            textposition="outside"
-        )
+    fig_sentiment_count.update_layout(
+        paper_bgcolor="#111111",
+        plot_bgcolor="#111111",
+        font=dict(color="white"),
+        margin=dict(
+            t=60,
+            b=40,
+            l=40,
+            r=20,
+        ),
+        xaxis=dict(
+            gridcolor="#2a2a2a",
+        ),
+        yaxis=dict(
+            gridcolor="#2a2a2a",
+        ),
+        showlegend=False,
+    )
 
-        fig_sentiment_count.update_layout(
-            paper_bgcolor="#111111",
-            plot_bgcolor="#111111",
-            font=dict(color="white"),
-            margin=dict(
-                t=60,
-                b=40,
-                l=40,
-                r=20,
-            ),
-            xaxis=dict(
-                gridcolor="#2a2a2a",
-            ),
-            yaxis=dict(
-                gridcolor="#2a2a2a",
-            ),
-            showlegend=False,
-        )
-
-        st.plotly_chart(
-            fig_sentiment_count,
-            use_container_width=True,
-        )
+    st.plotly_chart(
+        fig_sentiment_count,
+        use_container_width=True,
+    )
 
 
     # ========================================================
