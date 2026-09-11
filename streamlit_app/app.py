@@ -1513,7 +1513,6 @@ def generate_word_cloud(df):
 # SIDEBAR
 # ============================================================
 
-# Font Awesome icon — stays on page
 st.sidebar.markdown(
     """
 <div class="reddit-sidebar-icon">
@@ -1654,8 +1653,6 @@ if submitted:
 
             result["raw"] = raw_df
 
-            # IMPORTANT:
-            # Store the complete result in one place.
             st.session_state[
                 "result"
             ] = result
@@ -1687,8 +1684,7 @@ if submitted:
 
 if "result" not in st.session_state:
 
-    st.markdown(
-        """
+    st.markdown("""
 <div class="reddit-header">
 
     <div class="reddit-icon">
@@ -1797,8 +1793,7 @@ SUBREDDIT = st.session_state.get(
 # MAIN HEADER
 # ============================================================
 
-st.markdown(
-    f"""
+st.markdown(f"""
 <div class="reddit-header">
 
     <div class="reddit-icon">
