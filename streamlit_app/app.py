@@ -41,7 +41,7 @@ REDDIT_ICON_URL = (
 
 st.set_page_config(
     page_title="Reddit Recon",
-    page_icon=REDDIT_ICON_URL,
+    page_icon="https://www.reddit.com/favicon.ico",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -1548,7 +1548,7 @@ def run_nlp_pipeline(
 
 with st.sidebar:
 
-    st.markdown(
+    st.html(
         """
         <div style="
             display:flex;
@@ -1572,7 +1572,7 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    st.markdown(
+    st.html(
         """
         <div style="
             color:#999999 !important;
@@ -1633,7 +1633,7 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    st.markdown(
+    st.html(
         f"""
         <div style="
             font-size:0.8rem;
@@ -1844,7 +1844,7 @@ overall_review = result.get(
 # MAIN HEADER
 # ============================================================
 
-st.markdown(
+st.html(
     f"""
     <div class="reddit-header">
 
@@ -1930,7 +1930,7 @@ with tabs[0]:
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.markdown(
+        st.html(
             f"""
             <div class="metric-card">
                 <div class="metric-value">
@@ -1945,22 +1945,22 @@ with tabs[0]:
         )
 
     with col2:
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <div class="metric-value">
-                    {best_k}
+        st.html(
+                f"""
+                <div class="metric-card">
+                    <div class="metric-value">
+                        {best_k}
+                    </div>
+                    <div class="metric-label">
+                        Topics discovered
+                    </div>
                 </div>
-                <div class="metric-label">
-                    Topics discovered
-                </div>
-            </div>
-            """,
+                """,
             unsafe_allow_html=True,
         )
 
     with col3:
-        st.markdown(
+        st.html(
             f"""
             <div class="metric-card">
                 <div class="metric-value">
@@ -1975,7 +1975,7 @@ with tabs[0]:
         )
 
     with col4:
-        st.markdown(
+        st.html(
             f"""
             <div class="metric-card">
                 <div class="metric-value">
