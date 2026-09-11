@@ -1,7 +1,5 @@
 import html
 import json
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 
 import matplotlib.pyplot as plt
@@ -33,15 +31,11 @@ from wordcloud import WordCloud
 # PAGE CONFIG
 # ============================================================
 
-# Font Awesome Reddit icon used as the browser-tab favicon.
-REDDIT_ICON_URL = (
-    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/"
-    "svgs/brands/reddit.svg"
-)
+REDDIT_ICON_URL = "https://www.reddit.com/favicon.ico"
 
 st.set_page_config(
     page_title="Reddit Recon",
-    page_icon="https://www.reddit.com/favicon.ico",
+    page_icon=REDDIT_ICON_URL,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -51,18 +45,14 @@ st.set_page_config(
 # CONSTANTS
 # ============================================================
 
-ARCTIC_URL = (
-    "https://arctic-shift.photon-reddit.com/api/posts/search"
-)
+ARCTIC_URL = "https://arctic-shift.photon-reddit.com/api/posts/search"
 
 SENTIMENT_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
-# Fixed GPT-OSS model. No model selector in the UI.
 LLM_MODEL = "openai/gpt-oss-20b"
 
 DEFAULT_BATCH_SIZE = 16
-DEFAULT_WORKERS = 3
 DEFAULT_RANDOM_STATE = 42
 DEFAULT_RETRIES = 4
 DEFAULT_MAX_TEXT = 2500
@@ -70,322 +60,265 @@ DEFAULT_EMBED_BATCH = 32
 
 
 # ============================================================
-# DARK / WHITE UI
+# FONT AWESOME + DARK THEME
 # ============================================================
 
 st.markdown(
     """
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
-    >
+<link
+rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+>
 
-    <style>
+<style>
 
-    /* --------------------------------------------------------
-       GLOBAL
-    -------------------------------------------------------- */
+html,
+body,
+[data-testid="stAppViewContainer"],
+[data-testid="stApp"] {
+background:#111111 !important;
+color:#ffffff !important;
+}
 
-    html,
-    body,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stApp"] {
-        background: #111111 !important;
-        color: #ffffff !important;
-    }
+[data-testid="stHeader"] {
+background:#111111 !important;
+}
 
-    [data-testid="stHeader"] {
-        background: #111111 !important;
-    }
+[data-testid="stToolbar"] {
+background:#111111 !important;
+}
 
-    [data-testid="stToolbar"] {
-        background: #111111 !important;
-    }
+[data-testid="stDecoration"] {
+background:#111111 !important;
+}
 
-    [data-testid="stDecoration"] {
-        background: #111111 !important;
-    }
+* {
+color:#ffffff !important;
+}
 
-    * {
-        color: #ffffff !important;
-    }
+p,
+span,
+div,
+label,
+li,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+color:#ffffff !important;
+}
 
-    p,
-    span,
-    div,
-    label,
-    li,
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6 {
-        color: #ffffff !important;
-    }
+[data-testid="stSidebar"] {
+background:#111111 !important;
+border-right:1px solid #333333 !important;
+}
 
-    /* --------------------------------------------------------
-       SIDEBAR
-    -------------------------------------------------------- */
+[data-testid="stSidebarContent"] {
+background:#111111 !important;
+}
 
-    [data-testid="stSidebar"] {
-        background: #111111 !important;
-        border-right: 1px solid #333333 !important;
-    }
+input,
+textarea,
+[data-baseweb="select"] > div,
+[data-baseweb="input"] > div {
+background:#181818 !important;
+color:#ffffff !important;
+border-color:#444444 !important;
+}
 
-    [data-testid="stSidebarContent"] {
-        background: #111111 !important;
-    }
+input::placeholder,
+textarea::placeholder {
+color:#888888 !important;
+}
 
-    /* --------------------------------------------------------
-       INPUTS
-    -------------------------------------------------------- */
+[data-baseweb="select"] *,
+[data-baseweb="popover"] * {
+color:#ffffff !important;
+}
 
-    input,
-    textarea,
-    [data-baseweb="select"] > div,
-    [data-baseweb="input"] > div {
-        background: #181818 !important;
-        color: #ffffff !important;
-        border-color: #444444 !important;
-    }
+[role="option"] {
+background:#181818 !important;
+color:#ffffff !important;
+}
 
-    input::placeholder,
-    textarea::placeholder {
-        color: #888888 !important;
-    }
+[role="option"]:hover {
+background:#292929 !important;
+}
 
-    [data-baseweb="select"] *,
-    [data-baseweb="popover"] * {
-        color: #ffffff !important;
-    }
+button {
+color:#ffffff !important;
+}
 
-    [role="option"] {
-        background: #181818 !important;
-        color: #ffffff !important;
-    }
+[data-testid="stButton"] button,
+[data-testid="stFormSubmitButton"] button {
+background:#181818 !important;
+color:#ffffff !important;
+border:1px solid #555555 !important;
+border-radius:8px !important;
+font-weight:700 !important;
+}
 
-    [role="option"]:hover {
-        background: #292929 !important;
-    }
+[data-testid="stButton"] button:hover,
+[data-testid="stFormSubmitButton"] button:hover {
+background:#252525 !important;
+border-color:#777777 !important;
+}
 
-    /* --------------------------------------------------------
-       BUTTONS
-    -------------------------------------------------------- */
+[data-baseweb="tab-list"] {
+background:#111111 !important;
+border-bottom:1px solid #333333 !important;
+}
 
-    button {
-        color: #ffffff !important;
-    }
+[data-baseweb="tab"] {
+color:#aaaaaa !important;
+}
 
-    [data-testid="stButton"] button,
-    [data-testid="stFormSubmitButton"] button {
-        background: #181818 !important;
-        color: #ffffff !important;
-        border: 1px solid #555555 !important;
-        border-radius: 8px !important;
-        font-weight: 700 !important;
-    }
+[aria-selected="true"] {
+color:#ffffff !important;
+}
 
-    [data-testid="stButton"] button:hover,
-    [data-testid="stFormSubmitButton"] button:hover {
-        background: #252525 !important;
-        border-color: #777777 !important;
-    }
+.reddit-card {
+background:#181818;
+border:1px solid #333333;
+border-radius:12px;
+padding:1.25rem;
+margin-bottom:1rem;
+}
 
-    /* --------------------------------------------------------
-       TABS
-    -------------------------------------------------------- */
+.reddit-card:hover {
+border-color:#555555;
+}
 
-    [data-baseweb="tab-list"] {
-        background: #111111 !important;
-        border-bottom: 1px solid #333333 !important;
-    }
+.topic-title {
+font-size:1.25rem;
+font-weight:800;
+margin-bottom:0.8rem;
+color:#ffffff !important;
+}
 
-    [data-baseweb="tab"] {
-        color: #aaaaaa !important;
-    }
+.reddit-header {
+display:flex;
+align-items:center;
+gap:18px;
+padding:1.25rem 0 1.5rem 0;
+margin-bottom:1rem;
+border-bottom:1px solid #333333;
+}
 
-    [aria-selected="true"] {
-        color: #ffffff !important;
-    }
+.reddit-icon {
+width:58px;
+height:58px;
+min-width:58px;
+display:flex;
+align-items:center;
+justify-content:center;
+border:1px solid #444444;
+border-radius:50%;
+background:#181818;
+}
 
-    /* --------------------------------------------------------
-       CARDS
-    -------------------------------------------------------- */
+.reddit-icon i {
+font-size:34px !important;
+color:#ffffff !important;
+}
 
-    .reddit-card {
-        background: #181818;
-        border: 1px solid #333333;
-        border-radius: 12px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-    }
+.reddit-header h1 {
+margin:0;
+padding:0;
+font-size:2rem;
+line-height:1.15;
+color:#ffffff !important;
+}
 
-    .reddit-card:hover {
-        border-color: #555555;
-    }
+.reddit-header p {
+margin:0.35rem 0 0 0;
+color:#aaaaaa !important;
+font-size:0.95rem;
+}
 
-    .topic-title {
-        font-size: 1.25rem;
-        font-weight: 800;
-        margin-bottom: 0.8rem;
-        color: #ffffff !important;
-    }
+.badge {
+display:inline-block;
+padding:4px 9px;
+margin-right:6px;
+margin-bottom:5px;
+border:1px solid #555555;
+border-radius:999px;
+font-size:0.78rem;
+font-weight:700;
+background:#222222;
+color:#ffffff !important;
+}
 
-    .reddit-header {
-        display: flex;
-        align-items: center;
-        gap: 18px;
-        padding: 1.25rem 0 1.5rem 0;
-        margin-bottom: 1rem;
-        border-bottom: 1px solid #333333;
-    }
+.post-item {
+padding:0.75rem 0;
+border-bottom:1px solid #333333;
+}
 
-    .reddit-icon {
-        width: 58px;
-        height: 58px;
-        min-width: 58px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid #444444;
-        border-radius: 50%;
-        background: #181818;
-    }
+.post-item:last-child {
+border-bottom:none;
+}
 
-    .reddit-icon i {
-        font-size: 34px !important;
-        color: #ffffff !important;
-    }
+.post-title {
+font-weight:700;
+line-height:1.4;
+}
 
-    .reddit-header h1 {
-        margin: 0;
-        padding: 0;
-        font-size: 2rem;
-        line-height: 1.15;
-        color: #ffffff !important;
-    }
+.post-meta {
+color:#999999 !important;
+font-size:0.82rem;
+margin-top:4px;
+}
 
-    .reddit-header p {
-        margin: 0.35rem 0 0 0;
-        color: #aaaaaa !important;
-        font-size: 0.95rem;
-    }
+.post-link {
+color:#ffffff !important;
+text-decoration:none !important;
+}
 
-    /* --------------------------------------------------------
-       BADGES
-    -------------------------------------------------------- */
+.post-link:hover {
+text-decoration:underline !important;
+}
 
-    .badge {
-        display: inline-block;
-        padding: 4px 9px;
-        margin-right: 6px;
-        margin-bottom: 5px;
-        border: 1px solid #555555;
-        border-radius: 999px;
-        font-size: 0.78rem;
-        font-weight: 700;
-        background: #222222;
-        color: #ffffff !important;
-    }
+.metric-card {
+background:#181818;
+border:1px solid #333333;
+border-radius:10px;
+padding:1rem;
+text-align:center;
+}
 
-    /* --------------------------------------------------------
-       POSTS
-    -------------------------------------------------------- */
+.metric-value {
+font-size:1.8rem;
+font-weight:800;
+}
 
-    .post-item {
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #333333;
-    }
+.metric-label {
+color:#999999 !important;
+font-size:0.8rem;
+margin-top:3px;
+}
 
-    .post-item:last-child {
-        border-bottom: none;
-    }
+hr {
+border-color:#333333 !important;
+}
 
-    .post-title {
-        font-weight: 700;
-        line-height: 1.4;
-    }
+[data-testid="stDataFrame"] {
+border:1px solid #333333 !important;
+}
 
-    .post-meta {
-        color: #999999 !important;
-        font-size: 0.82rem;
-        margin-top: 4px;
-    }
+[data-testid="stExpander"] {
+background:#181818 !important;
+border:1px solid #333333 !important;
+border-radius:10px !important;
+}
 
-    .post-link {
-        color: #ffffff !important;
-        text-decoration: none !important;
-    }
+footer {
+visibility:hidden;
+}
 
-    .post-link:hover {
-        text-decoration: underline !important;
-    }
-
-    /* --------------------------------------------------------
-       METRICS
-    -------------------------------------------------------- */
-
-    .metric-card {
-        background: #181818;
-        border: 1px solid #333333;
-        border-radius: 10px;
-        padding: 1rem;
-        text-align: center;
-    }
-
-    .metric-value {
-        font-size: 1.8rem;
-        font-weight: 800;
-    }
-
-    .metric-label {
-        color: #999999 !important;
-        font-size: 0.8rem;
-        margin-top: 3px;
-    }
-
-    /* --------------------------------------------------------
-       DIVIDERS / DATAFRAME
-    -------------------------------------------------------- */
-
-    hr {
-        border-color: #333333 !important;
-    }
-
-    [data-testid="stDataFrame"] {
-        border: 1px solid #333333 !important;
-    }
-
-    /* --------------------------------------------------------
-       EXPANDERS
-    -------------------------------------------------------- */
-
-    [data-testid="stExpander"] {
-        background: #181818 !important;
-        border: 1px solid #333333 !important;
-        border-radius: 10px !important;
-    }
-
-    /* --------------------------------------------------------
-       ALERTS
-    -------------------------------------------------------- */
-
-    [data-testid="stAlert"] {
-        background: #181818 !important;
-        border: 1px solid #444444 !important;
-    }
-
-    /* --------------------------------------------------------
-       FOOTER
-    -------------------------------------------------------- */
-
-    footer {
-        visibility: hidden;
-    }
-
-    </style>
-    """,
+</style>
+""",
     unsafe_allow_html=True,
 )
 
@@ -395,7 +328,7 @@ st.markdown(
 # ============================================================
 
 if "selected_subreddit" not in st.session_state:
-    st.session_state["selected_subreddit"] = None
+    st.session_state["selected_subreddit"] = ""
 
 if "result" not in st.session_state:
     st.session_state["result"] = None
@@ -407,6 +340,7 @@ if "result" not in st.session_state:
 
 @st.cache_resource(show_spinner=False)
 def get_http_session():
+
     session = requests.Session()
 
     retry = Retry(
@@ -445,12 +379,13 @@ def get_http_session():
 # ============================================================
 
 def normalize_subreddit(value):
+
     value = str(value).strip()
 
     if value.startswith("https://www.reddit.com/r/"):
         value = value.split("/r/", 1)[1]
 
-    if value.startswith("https://reddit.com/r/"):
+    elif value.startswith("https://reddit.com/r/"):
         value = value.split("/r/", 1)[1]
 
     value = value.strip("/")
@@ -461,16 +396,8 @@ def normalize_subreddit(value):
     return value.strip()
 
 
-def safe_float(value, default=0.0):
-    try:
-        if pd.isna(value):
-            return default
-        return float(value)
-    except Exception:
-        return default
-
-
 def clean_text(value):
+
     if value is None:
         return ""
 
@@ -487,7 +414,11 @@ def clean_text(value):
     return text.strip()
 
 
-def truncate_text(text, max_chars=DEFAULT_MAX_TEXT):
+def truncate_text(
+    text,
+    max_chars=DEFAULT_MAX_TEXT,
+):
+
     text = clean_text(text)
 
     if len(text) <= max_chars:
@@ -496,47 +427,58 @@ def truncate_text(text, max_chars=DEFAULT_MAX_TEXT):
     return text[:max_chars] + "..."
 
 
-def json_safe(value):
-    if isinstance(value, np.integer):
-        return int(value)
+def safe_float(
+    value,
+    default=0.0,
+):
 
-    if isinstance(value, np.floating):
+    try:
+
+        if pd.isna(value):
+            return default
+
         return float(value)
 
-    if isinstance(value, np.ndarray):
-        return value.tolist()
+    except Exception:
 
-    if pd.isna(value):
-        return None
-
-    return value
+        return default
 
 
 # ============================================================
-# REDDIT FETCH
+# FETCH REDDIT POSTS
 # ============================================================
 
 def fetch_reddit_posts(
     subreddit,
-    days_back=5,
-    posts_to_fetch=100,
+    days_back,
+    posts_to_fetch,
 ):
+
     subreddit = normalize_subreddit(subreddit)
 
     if not subreddit:
-        raise ValueError("Please enter a subreddit.")
+        raise ValueError(
+            "Please enter a subreddit."
+        )
 
     session = get_http_session()
 
     before = datetime.now(timezone.utc)
-    after = before - timedelta(days=int(days_back))
+
+    after = (
+        before
+        - timedelta(days=int(days_back))
+    )
 
     params = {
         "subreddit": subreddit,
         "after": after.isoformat(),
         "before": before.isoformat(),
         "sort": "desc",
-        "limit": min(int(posts_to_fetch), 100),
+        "limit": min(
+            int(posts_to_fetch),
+            100,
+        ),
     }
 
     response = session.get(
@@ -546,6 +488,7 @@ def fetch_reddit_posts(
     )
 
     if response.status_code != 200:
+
         raise RuntimeError(
             f"Arctic Shift returned HTTP "
             f"{response.status_code}: "
@@ -555,34 +498,38 @@ def fetch_reddit_posts(
     payload = response.json()
 
     if isinstance(payload, dict):
-        rows = payload.get("data", [])
 
-        if rows is None:
-            rows = []
+        rows = payload.get(
+            "data",
+            [],
+        )
+
     elif isinstance(payload, list):
+
         rows = payload
+
     else:
+
         rows = []
 
     if not rows:
         return pd.DataFrame()
 
-    df = pd.DataFrame(rows)
-
-    return df
+    return pd.DataFrame(rows)
 
 
 # ============================================================
-# CLEAN REDDIT DATA
+# PREPARE POSTS
 # ============================================================
 
 def prepare_posts(df):
+
     if df is None or df.empty:
         return pd.DataFrame()
 
     work = df.copy()
 
-    required_defaults = {
+    defaults = {
         "id": "",
         "title": "",
         "selftext": "",
@@ -594,12 +541,22 @@ def prepare_posts(df):
         "subreddit": "",
     }
 
-    for column, default in required_defaults.items():
+    for column, default in defaults.items():
+
         if column not in work.columns:
             work[column] = default
 
-    work["title"] = work["title"].fillna("").astype(str)
-    work["selftext"] = work["selftext"].fillna("").astype(str)
+    work["title"] = (
+        work["title"]
+        .fillna("")
+        .astype(str)
+    )
+
+    work["selftext"] = (
+        work["selftext"]
+        .fillna("")
+        .astype(str)
+    )
 
     work["text"] = (
         work["title"].str.strip()
@@ -608,10 +565,15 @@ def prepare_posts(df):
     )
 
     work["text"] = work["text"].apply(
-        lambda x: truncate_text(x, DEFAULT_MAX_TEXT)
+        lambda x: truncate_text(
+            x,
+            DEFAULT_MAX_TEXT,
+        )
     )
 
-    work = work[work["title"].str.strip() != ""]
+    work = work[
+        work["title"].str.strip() != ""
+    ].copy()
 
     work = work[
         work["text"].str.len() > 10
@@ -632,22 +594,17 @@ def prepare_posts(df):
         + work["num_comments"].clip(lower=0) * 2
     )
 
-    if "created_utc" in work.columns:
-        numeric_created = pd.to_numeric(
-            work["created_utc"],
-            errors="coerce",
-        )
+    numeric_created = pd.to_numeric(
+        work["created_utc"],
+        errors="coerce",
+    )
 
-        if numeric_created.notna().any():
-            work["created"] = pd.to_datetime(
-                numeric_created,
-                unit="s",
-                errors="coerce",
-                utc=True,
-            )
-
-    if "created" not in work.columns:
-        work["created"] = pd.NaT
+    work["created"] = pd.to_datetime(
+        numeric_created,
+        unit="s",
+        errors="coerce",
+        utc=True,
+    )
 
     work = work.sort_values(
         "engagement",
@@ -668,12 +625,16 @@ def prepare_posts(df):
 
 @st.cache_resource(show_spinner=False)
 def load_sentiment_pipeline():
+
     tokenizer = AutoTokenizer.from_pretrained(
         SENTIMENT_MODEL
     )
 
-    model = AutoModelForSequenceClassification.from_pretrained(
-        SENTIMENT_MODEL
+    model = (
+        AutoModelForSequenceClassification
+        .from_pretrained(
+            SENTIMENT_MODEL
+        )
     )
 
     return pipeline(
@@ -686,6 +647,7 @@ def load_sentiment_pipeline():
 
 
 def normalize_sentiment(label):
+
     label = str(label).lower()
 
     if "positive" in label:
@@ -698,6 +660,7 @@ def normalize_sentiment(label):
 
 
 def analyze_sentiment(texts):
+
     if not texts:
         return []
 
@@ -710,6 +673,7 @@ def analyze_sentiment(texts):
         len(texts),
         DEFAULT_BATCH_SIZE,
     ):
+
         batch = texts[
             start:start + DEFAULT_BATCH_SIZE
         ]
@@ -717,13 +681,20 @@ def analyze_sentiment(texts):
         output = classifier(batch)
 
         for item in output:
+
             results.append(
                 {
                     "label": normalize_sentiment(
-                        item.get("label", "Neutral")
+                        item.get(
+                            "label",
+                            "Neutral",
+                        )
                     ),
                     "score": safe_float(
-                        item.get("score", 0)
+                        item.get(
+                            "score",
+                            0,
+                        )
                     ),
                 }
             )
@@ -737,6 +708,7 @@ def analyze_sentiment(texts):
 
 @st.cache_resource(show_spinner=False)
 def load_embedding_model():
+
     tokenizer = AutoTokenizer.from_pretrained(
         EMBEDDING_MODEL
     )
@@ -750,18 +722,27 @@ def load_embedding_model():
     return tokenizer, model
 
 
-def mean_pooling(model_output, attention_mask):
-    token_embeddings = model_output.last_hidden_state
+def mean_pooling(
+    model_output,
+    attention_mask,
+):
+
+    token_embeddings = (
+        model_output.last_hidden_state
+    )
 
     input_mask_expanded = (
         attention_mask
         .unsqueeze(-1)
-        .expand(token_embeddings.size())
+        .expand(
+            token_embeddings.size()
+        )
         .float()
     )
 
     return torch.sum(
-        token_embeddings * input_mask_expanded,
+        token_embeddings
+        * input_mask_expanded,
         dim=1,
     ) / torch.clamp(
         input_mask_expanded.sum(dim=1),
@@ -770,10 +751,15 @@ def mean_pooling(model_output, attention_mask):
 
 
 def create_embeddings(texts):
-    if not texts:
-        return np.empty((0, 384))
 
-    tokenizer, model = load_embedding_model()
+    if not texts:
+        return np.empty(
+            (0, 384)
+        )
+
+    tokenizer, model = (
+        load_embedding_model()
+    )
 
     device = (
         torch.device("cuda")
@@ -786,13 +772,16 @@ def create_embeddings(texts):
     all_embeddings = []
 
     with torch.no_grad():
+
         for start in range(
             0,
             len(texts),
             DEFAULT_EMBED_BATCH,
         ):
+
             batch = texts[
-                start:start + DEFAULT_EMBED_BATCH
+                start:start
+                + DEFAULT_EMBED_BATCH
             ]
 
             encoded = tokenizer(
@@ -815,17 +804,22 @@ def create_embeddings(texts):
                 encoded["attention_mask"],
             )
 
-            embeddings = torch.nn.functional.normalize(
-                embeddings,
-                p=2,
-                dim=1,
+            embeddings = (
+                torch.nn.functional
+                .normalize(
+                    embeddings,
+                    p=2,
+                    dim=1,
+                )
             )
 
             all_embeddings.append(
                 embeddings.cpu().numpy()
             )
 
-    return np.vstack(all_embeddings)
+    return np.vstack(
+        all_embeddings
+    )
 
 
 # ============================================================
@@ -837,11 +831,18 @@ def discover_topics(
     min_k=2,
     max_k=8,
 ):
+
     n = len(embeddings)
 
     if n < 4:
-        labels = np.zeros(n, dtype=int)
-        return labels, 1
+
+        return (
+            np.zeros(
+                n,
+                dtype=int,
+            ),
+            1,
+        )
 
     upper = min(
         max_k,
@@ -853,21 +854,29 @@ def discover_topics(
 
     best_score = -1
     best_k = 1
-    best_labels = np.zeros(n, dtype=int)
+
+    best_labels = np.zeros(
+        n,
+        dtype=int,
+    )
 
     for k in range(
         min_k,
         upper + 1,
     ):
+
         try:
+
             model = KMeans(
                 n_clusters=k,
                 random_state=DEFAULT_RANDOM_STATE,
                 n_init=10,
             )
 
-            labels = model.fit_predict(
-                embeddings
+            labels = (
+                model.fit_predict(
+                    embeddings
+                )
             )
 
             if len(set(labels)) < 2:
@@ -879,6 +888,7 @@ def discover_topics(
             )
 
             if score > best_score:
+
                 best_score = score
                 best_k = k
                 best_labels = labels
@@ -887,19 +897,25 @@ def discover_topics(
             continue
 
     if best_k == 1:
+
         model = KMeans(
             n_clusters=2,
             random_state=DEFAULT_RANDOM_STATE,
             n_init=10,
         )
 
-        best_labels = model.fit_predict(
-            embeddings
+        best_labels = (
+            model.fit_predict(
+                embeddings
+            )
         )
 
         best_k = 2
 
-    return best_labels, best_k
+    return (
+        best_labels,
+        best_k,
+    )
 
 
 # ============================================================
@@ -911,6 +927,7 @@ def extract_topic_keywords(
     labels,
     top_n=8,
 ):
+
     if len(texts) == 0:
         return {}
 
@@ -921,7 +938,9 @@ def extract_topic_keywords(
         min_df=1,
     )
 
-    matrix = vectorizer.fit_transform(texts)
+    matrix = vectorizer.fit_transform(
+        texts
+    )
 
     terms = np.array(
         vectorizer.get_feature_names_out()
@@ -929,24 +948,36 @@ def extract_topic_keywords(
 
     keywords = {}
 
-    for topic_id in sorted(set(labels)):
+    for topic_id in sorted(
+        set(labels)
+    ):
+
         indices = np.where(
             labels == topic_id
         )[0]
 
         if len(indices) == 0:
-            keywords[int(topic_id)] = []
+
+            keywords[
+                int(topic_id)
+            ] = []
+
             continue
 
         topic_scores = np.asarray(
-            matrix[indices].mean(axis=0)
+            matrix[
+                indices
+            ].mean(axis=0)
         ).ravel()
 
-        order = topic_scores.argsort()[::-1]
+        order = (
+            topic_scores.argsort()[::-1]
+        )
 
         selected = []
 
         for idx in order:
+
             term = terms[idx]
 
             if term not in selected:
@@ -955,7 +986,9 @@ def extract_topic_keywords(
             if len(selected) >= top_n:
                 break
 
-        keywords[int(topic_id)] = selected
+        keywords[
+            int(topic_id)
+        ] = selected
 
     return keywords
 
@@ -970,19 +1003,25 @@ def build_topic_evidence(
     keywords,
     max_posts=5,
 ):
+
     evidence = {}
 
     work = df.copy()
+
     work["topic"] = labels
 
     for topic_id in sorted(
         work["topic"].unique()
     ):
-        topic_df = work[
-            work["topic"] == topic_id
-        ].sort_values(
-            "engagement",
-            ascending=False,
+
+        topic_df = (
+            work[
+                work["topic"] == topic_id
+            ]
+            .sort_values(
+                "engagement",
+                ascending=False,
+            )
         )
 
         posts = []
@@ -994,14 +1033,23 @@ def build_topic_evidence(
             posts.append(
                 {
                     "title": clean_text(
-                        row.get("title", "")
+                        row.get(
+                            "title",
+                            "",
+                        )
                     ),
                     "text": truncate_text(
-                        row.get("text", ""),
+                        row.get(
+                            "text",
+                            "",
+                        ),
                         700,
                     ),
                     "score": safe_float(
-                        row.get("score", 0)
+                        row.get(
+                            "score",
+                            0,
+                        )
                     ),
                     "comments": safe_float(
                         row.get(
@@ -1010,12 +1058,17 @@ def build_topic_evidence(
                         )
                     ),
                     "url": clean_text(
-                        row.get("url", "")
+                        row.get(
+                            "url",
+                            "",
+                        )
                     ),
                 }
             )
 
-        evidence[int(topic_id)] = {
+        evidence[
+            int(topic_id)
+        ] = {
             "keywords": keywords.get(
                 int(topic_id),
                 [],
@@ -1031,8 +1084,12 @@ def build_topic_evidence(
 # ============================================================
 
 def get_groq_key():
+
     try:
-        return st.secrets["GROQ_API_KEY"]
+        return st.secrets[
+            "GROQ_API_KEY"
+        ]
+
     except Exception:
         return None
 
@@ -1042,15 +1099,19 @@ def groq_request(
     response_schema,
     temperature=0.2,
 ):
+
     api_key = get_groq_key()
 
     if not api_key:
+
         raise RuntimeError(
-            "GROQ_API_KEY is missing from Streamlit secrets."
+            "GROQ_API_KEY is missing "
+            "from Streamlit secrets."
         )
 
     endpoint = (
-        "https://api.groq.com/openai/v1/chat/completions"
+        "https://api.groq.com/openai/v1/"
+        "chat/completions"
     )
 
     payload = {
@@ -1060,9 +1121,13 @@ def groq_request(
         "response_format": {
             "type": "json_schema",
             "json_schema": {
-                "name": response_schema["name"],
+                "name": response_schema[
+                    "name"
+                ],
                 "strict": True,
-                "schema": response_schema["schema"],
+                "schema": response_schema[
+                    "schema"
+                ],
             },
         },
     }
@@ -1070,14 +1135,19 @@ def groq_request(
     response = requests.post(
         endpoint,
         headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
+            "Authorization": (
+                f"Bearer {api_key}"
+            ),
+            "Content-Type": (
+                "application/json"
+            ),
         },
         json=payload,
         timeout=90,
     )
 
     if response.status_code != 200:
+
         raise RuntimeError(
             f"Groq API error "
             f"{response.status_code}: "
@@ -1088,10 +1158,14 @@ def groq_request(
 
     content = (
         data["choices"][0]["message"]
-        .get("content", "")
+        .get(
+            "content",
+            "",
+        )
     )
 
     if not content:
+
         raise RuntimeError(
             "Groq returned an empty response."
         )
@@ -1100,7 +1174,7 @@ def groq_request(
 
 
 # ============================================================
-# AI TOPIC ANALYSIS
+# TOPIC AI SCHEMA
 # ============================================================
 
 TOPIC_SCHEMA = {
@@ -1132,6 +1206,7 @@ def analyze_topic_with_llm(
     topic_id,
     topic_data,
 ):
+
     keywords = topic_data.get(
         "keywords",
         [],
@@ -1145,15 +1220,41 @@ def analyze_topic_with_llm(
     evidence_text = []
 
     for post in posts:
+
         evidence_text.append(
             "\n".join(
                 [
-                    f"Title: {post.get('title', '')}",
-                    f"Text: {post.get('text', '')}",
-                    f"Score: {post.get('score', 0)}",
+                    (
+                        "Title: "
+                        + post.get(
+                            "title",
+                            "",
+                        )
+                    ),
+                    (
+                        "Text: "
+                        + post.get(
+                            "text",
+                            "",
+                        )
+                    ),
+                    (
+                        "Score: "
+                        + str(
+                            post.get(
+                                "score",
+                                0,
+                            )
+                        )
+                    ),
                     (
                         "Comments: "
-                        f"{post.get('comments', 0)}"
+                        + str(
+                            post.get(
+                                "comments",
+                                0,
+                            )
+                        )
                     ),
                 ]
             )
@@ -1172,6 +1273,7 @@ Representative Reddit posts:
 {chr(10).join(evidence_text)}
 
 Give this topic:
+
 1. A concise human-readable name.
 2. A factual description of what users are discussing.
 3. A concise description of the reaction/context visible in the posts.
@@ -1186,7 +1288,8 @@ Keep the output concise.
             {
                 "role": "system",
                 "content": (
-                    "You are a precise Reddit research analyst."
+                    "You are a precise "
+                    "Reddit research analyst."
                 ),
             },
             {
@@ -1199,7 +1302,7 @@ Keep the output concise.
 
 
 # ============================================================
-# OVERALL AI REVIEW
+# OVERALL AI SCHEMA
 # ============================================================
 
 OVERALL_SCHEMA = {
@@ -1236,9 +1339,13 @@ def generate_overall_review(
     topic_analysis,
     sentiment_summary,
 ):
+
     topic_lines = []
 
-    for topic_id, info in topic_analysis.items():
+    for topic_id, info in (
+        topic_analysis.items()
+    ):
+
         topic_lines.append(
             f"""
 Topic {topic_id}:
@@ -1263,6 +1370,7 @@ Topic analysis:
 Produce a concise overall Reddit community review.
 
 Focus on:
+
 - what the community is discussing
 - dominant topics
 - overall sentiment
@@ -1276,7 +1384,8 @@ Do not invent information.
             {
                 "role": "system",
                 "content": (
-                    "You are a rigorous Reddit intelligence analyst."
+                    "You are a rigorous "
+                    "Reddit intelligence analyst."
                 ),
             },
             {
@@ -1293,6 +1402,7 @@ Do not invent information.
 # ============================================================
 
 def create_wordcloud(text):
+
     if not text.strip():
         return None
 
@@ -1308,8 +1418,13 @@ def create_wordcloud(text):
         figsize=(14, 5)
     )
 
-    fig.patch.set_facecolor("#111111")
-    ax.set_facecolor("#111111")
+    fig.patch.set_facecolor(
+        "#111111"
+    )
+
+    ax.set_facecolor(
+        "#111111"
+    )
 
     ax.imshow(
         wordcloud,
@@ -1329,9 +1444,13 @@ def run_nlp_pipeline(
     raw_df,
     top_posts,
 ):
-    clean_df = prepare_posts(raw_df)
+
+    clean_df = prepare_posts(
+        raw_df
+    )
 
     if clean_df.empty:
+
         raise ValueError(
             "No usable Reddit posts were found "
             "for the selected time range."
@@ -1346,25 +1465,31 @@ def run_nlp_pipeline(
     ].tolist()
 
     # --------------------------------------------------------
-    # Sentiment
+    # SENTIMENT
     # --------------------------------------------------------
 
-    sentiment_results = analyze_sentiment(
-        texts
+    sentiment_results = (
+        analyze_sentiment(
+            texts
+        )
     )
 
-    analysis_df["sentiment"] = [
+    analysis_df[
+        "sentiment"
+    ] = [
         item["label"]
         for item in sentiment_results
     ]
 
-    analysis_df["sentiment_score"] = [
+    analysis_df[
+        "sentiment_score"
+    ] = [
         item["score"]
         for item in sentiment_results
     ]
 
     # --------------------------------------------------------
-    # Embeddings
+    # EMBEDDINGS
     # --------------------------------------------------------
 
     embeddings = create_embeddings(
@@ -1372,27 +1497,21 @@ def run_nlp_pipeline(
     )
 
     # --------------------------------------------------------
-    # Topics
+    # TOPICS
     # --------------------------------------------------------
 
     labels, best_k = discover_topics(
         embeddings
     )
 
-    analysis_df["topic"] = labels
-
-    # --------------------------------------------------------
-    # Keywords
-    # --------------------------------------------------------
+    analysis_df[
+        "topic"
+    ] = labels
 
     keywords = extract_topic_keywords(
         texts,
         labels,
     )
-
-    # --------------------------------------------------------
-    # Evidence
-    # --------------------------------------------------------
 
     evidence = build_topic_evidence(
         analysis_df,
@@ -1401,11 +1520,12 @@ def run_nlp_pipeline(
     )
 
     # --------------------------------------------------------
-    # Engagement
+    # ENGAGEMENT
     # --------------------------------------------------------
 
     top_engaged = (
-        analysis_df.sort_values(
+        analysis_df
+        .sort_values(
             "engagement",
             ascending=False,
         )
@@ -1414,7 +1534,7 @@ def run_nlp_pipeline(
     )
 
     # --------------------------------------------------------
-    # AI topic analysis
+    # AI TOPIC ANALYSIS
     # --------------------------------------------------------
 
     ai_insights = {}
@@ -1424,57 +1544,70 @@ def run_nlp_pipeline(
     )
 
     if groq_available:
-        progress = st.progress(
-            0,
-            text="Generating AI topic analysis...",
-        )
 
         topic_ids = sorted(
             evidence.keys()
         )
 
-        completed = 0
+        progress = st.progress(
+            0,
+            text=(
+                "Generating AI topic analysis..."
+            ),
+        )
 
-        for topic_id in topic_ids:
+        for index, topic_id in enumerate(
+            topic_ids,
+            start=1,
+        ):
+
             try:
-                ai_insights[topic_id] = (
-                    analyze_topic_with_llm(
-                        topic_id,
-                        evidence[topic_id],
-                    )
+
+                ai_insights[
+                    topic_id
+                ] = analyze_topic_with_llm(
+                    topic_id,
+                    evidence[topic_id],
                 )
+
             except Exception as exc:
-                ai_insights[topic_id] = {
+
+                ai_insights[
+                    topic_id
+                ] = {
                     "name": (
-                        "Topic "
-                        f"{topic_id + 1}"
+                        f"Topic {topic_id + 1}"
                     ),
                     "description": (
-                        "AI analysis failed for "
-                        "this topic."
+                        "AI analysis failed "
+                        "for this topic."
                     ),
                     "reaction": str(exc),
                     "error": True,
                 }
 
-            completed += 1
-
             progress.progress(
-                completed / max(
+                index / max(
                     len(topic_ids),
                     1,
                 ),
                 text=(
                     "Generating AI topic analysis "
-                    f"({completed}/{len(topic_ids)})"
+                    f"({index}/{len(topic_ids)})"
                 ),
             )
 
         progress.empty()
 
     else:
-        for topic_id, topic_info in evidence.items():
-            ai_insights[topic_id] = {
+
+        for topic_id, topic_info in (
+            evidence.items()
+        ):
+
+            ai_insights[
+                topic_id
+            ] = {
                 "name": (
                     " • ".join(
                         topic_info.get(
@@ -1482,11 +1615,15 @@ def run_nlp_pipeline(
                             [],
                         )[:3]
                     )
-                    or f"Topic {topic_id + 1}"
+                    or (
+                        f"Topic "
+                        f"{topic_id + 1}"
+                    )
                 ),
                 "description": (
-                    "Add GROQ_API_KEY to enable "
-                    "GPT-OSS topic analysis."
+                    "Add GROQ_API_KEY "
+                    "to enable GPT-OSS "
+                    "topic analysis."
                 ),
                 "reaction": (
                     "AI analysis is disabled."
@@ -1495,23 +1632,27 @@ def run_nlp_pipeline(
             }
 
     # --------------------------------------------------------
-    # Sentiment summary
+    # SENTIMENT SUMMARY
     # --------------------------------------------------------
 
     sentiment_summary = (
-        analysis_df["sentiment"]
+        analysis_df[
+            "sentiment"
+        ]
         .value_counts()
         .to_dict()
     )
 
     # --------------------------------------------------------
-    # Overall review
+    # OVERALL REVIEW
     # --------------------------------------------------------
 
     overall_review = None
 
     if groq_available:
+
         try:
+
             overall_review = (
                 generate_overall_review(
                     analysis_df,
@@ -1519,7 +1660,9 @@ def run_nlp_pipeline(
                     sentiment_summary,
                 )
             )
+
         except Exception as exc:
+
             overall_review = {
                 "summary": (
                     "Overall AI review failed."
@@ -1548,53 +1691,57 @@ def run_nlp_pipeline(
 
 with st.sidebar:
 
-    st.html(
+    st.markdown(
         """
-        <div style="
-            display:flex;
-            align-items:center;
-            gap:12px;
-            margin-bottom:1rem;
-        ">
-            <i
-                class="fa-brands fa-reddit"
-                style="font-size:34px;"
-            ></i>
+<div style="
+display:flex;
+align-items:center;
+gap:12px;
+margin-bottom:1rem;
+">
 
-            <div style="
-                font-size:1.25rem;
-                font-weight:800;
-            ">
-                Reddit Recon
-            </div>
-        </div>
-        """,
+<i
+class="fa-brands fa-reddit"
+style="font-size:34px;"
+></i>
+
+<div style="
+font-size:1.25rem;
+font-weight:800;
+">
+Reddit Recon
+</div>
+
+</div>
+""",
         unsafe_allow_html=True,
     )
 
-    st.html(
+    st.markdown(
         """
-        <div style="
-            color:#999999 !important;
-            font-size:0.85rem;
-            margin-bottom:1.25rem;
-        ">
-            Reddit community intelligence and
-            topic analysis.
-        </div>
-        """,
+<div style="
+color:#999999 !important;
+font-size:0.85rem;
+margin-bottom:1.25rem;
+">
+Reddit community intelligence and
+topic analysis.
+</div>
+""",
         unsafe_allow_html=True,
     )
 
-    with st.form("subreddit_form"):
+    with st.form(
+        "subreddit_form"
+    ):
 
         subreddit_input = st.text_input(
             "Subreddit",
             value=(
                 st.session_state.get(
-                    "selected_subreddit"
+                    "selected_subreddit",
+                    "",
                 )
-                or ""
             ),
             placeholder="e.g. GTA6",
         )
@@ -1633,18 +1780,20 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    st.html(
+    st.markdown(
         f"""
-        <div style="
-            font-size:0.8rem;
-            color:#888888 !important;
-            line-height:1.6;
-        ">
-            <b>AI:</b> {html.escape(LLM_MODEL)}<br>
-            <b>Embeddings:</b> MiniLM<br>
-            <b>Sentiment:</b> CardiffNLP RoBERTa
-        </div>
-        """,
+<div style="
+font-size:0.8rem;
+color:#888888 !important;
+line-height:1.6;
+">
+
+<b>AI:</b> {html.escape(LLM_MODEL)}<br>
+<b>Embeddings:</b> MiniLM<br>
+<b>Sentiment:</b> CardiffNLP RoBERTa
+
+</div>
+""",
         unsafe_allow_html=True,
     )
 
@@ -1660,17 +1809,20 @@ if submitted:
     )
 
     if not subreddit:
+
         st.error(
             "Enter a subreddit first."
         )
+
         st.stop()
 
     st.session_state[
         "selected_subreddit"
     ] = subreddit
 
-    # Important: clear stale results.
-    st.session_state["result"] = None
+    st.session_state[
+        "result"
+    ] = None
 
     try:
 
@@ -1690,6 +1842,7 @@ if submitted:
             )
 
             if raw_df.empty:
+
                 raise ValueError(
                     "No Reddit posts were returned. "
                     "Try a larger time range or "
@@ -1701,8 +1854,7 @@ if submitted:
             )
 
             st.write(
-                "Running sentiment, embeddings, "
-                "topic discovery, and AI analysis..."
+                "Running sentiment analysis..."
             )
 
             result = run_nlp_pipeline(
@@ -1710,7 +1862,13 @@ if submitted:
                 top_posts,
             )
 
-            result["raw"] = raw_df
+            result[
+                "raw"
+            ] = raw_df
+
+            result[
+                "days_back"
+            ] = days_back
 
             st.session_state[
                 "result"
@@ -1734,7 +1892,7 @@ if submitted:
 
 
 # ============================================================
-# NO RESULT YET
+# LOAD RESULT
 # ============================================================
 
 result = st.session_state.get(
@@ -1743,48 +1901,61 @@ result = st.session_state.get(
 
 selected_subreddit = (
     st.session_state.get(
-        "selected_subreddit"
+        "selected_subreddit",
+        "",
     )
 )
+
+
+# ============================================================
+# EMPTY STATE
+# ============================================================
 
 if result is None:
 
     st.markdown(
         """
-        <div style="
-            min-height:60vh;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            text-align:center;
-        ">
-            <div>
+<div style="
+min-height:60vh;
+display:flex;
+align-items:center;
+justify-content:center;
+text-align:center;
+">
 
-                <div class="reddit-icon"
-                     style="
-                        margin:0 auto 1.25rem auto;
-                     ">
-                    <i class="fa-brands fa-reddit"></i>
-                </div>
+<div>
 
-                <h1 style="
-                    font-size:2.4rem;
-                    margin-bottom:0.5rem;
-                ">
-                    Reddit Recon
-                </h1>
+<div class="reddit-icon" style="
+margin:0 auto 1.25rem auto;
+">
 
-                <p style="
-                    color:#999999 !important;
-                    font-size:1rem;
-                ">
-                    Enter a subreddit and click
-                    <b>Run Recon</b> to begin.
-                </p>
+<i class="fa-brands fa-reddit"></i>
 
-            </div>
-        </div>
-        """,
+</div>
+
+<h1 style="
+font-size:2.4rem;
+margin-bottom:0.5rem;
+">
+
+Reddit Recon
+
+</h1>
+
+<p style="
+color:#999999 !important;
+font-size:1rem;
+">
+
+Enter a subreddit and click
+<b>Run Recon</b> to begin.
+
+</p>
+
+</div>
+
+</div>
+""",
         unsafe_allow_html=True,
     )
 
@@ -1792,7 +1963,7 @@ if result is None:
 
 
 # ============================================================
-# LOAD RESULT
+# RESULT DATA
 # ============================================================
 
 raw_df = result.get(
@@ -1839,38 +2010,47 @@ overall_review = result.get(
     "overall_review"
 )
 
+result_days_back = result.get(
+    "days_back",
+    5,
+)
+
 
 # ============================================================
 # MAIN HEADER
 # ============================================================
 
-st.html(
+st.markdown(
     f"""
-    <div class="reddit-header">
+<div class="reddit-header">
 
-        <div class="reddit-icon">
-            <i class="fa-brands fa-reddit"></i>
-        </div>
+<div class="reddit-icon">
 
-        <div>
-            <h1>
-                Reddit Recon:
-                r/{html.escape(
-                    str(selected_subreddit)
-                )}
-            </h1>
+<i class="fa-brands fa-reddit"></i>
 
-            <p>
-                Analyzed top
-                {len(analysis_df):,}
-                posts from the last
-                {days_back if 'days_back' in locals() else '?'}
-                day(s).
-            </p>
-        </div>
+</div>
 
-    </div>
-    """,
+<div>
+
+<h1>
+Reddit Recon:
+r/{html.escape(
+    str(selected_subreddit)
+)}
+</h1>
+
+<p>
+Analyzed top
+{len(analysis_df):,}
+posts from the last
+{result_days_back}
+day(s).
+</p>
+
+</div>
+
+</div>
+""",
     unsafe_allow_html=True,
 )
 
@@ -1890,7 +2070,7 @@ tabs = st.tabs(
 
 
 # ============================================================
-# OVERVIEW
+# OVERVIEW TAB
 # ============================================================
 
 with tabs[0]:
@@ -1915,77 +2095,100 @@ with tabs[0]:
     )
 
     avg_score = (
-        analysis_df["score"].mean()
-        if "score" in analysis_df.columns
+        analysis_df[
+            "score"
+        ].mean()
+        if "score"
+        in analysis_df.columns
         else 0
     )
 
     avg_comments = (
-        analysis_df["num_comments"].mean()
+        analysis_df[
+            "num_comments"
+        ].mean()
         if "num_comments"
         in analysis_df.columns
         else 0
     )
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = (
+        st.columns(4)
+    )
 
     with col1:
-        st.html(
+
+        st.markdown(
             f"""
-            <div class="metric-card">
-                <div class="metric-value">
-                    {total_posts:,}
-                </div>
-                <div class="metric-label">
-                    Posts analyzed
-                </div>
-            </div>
-            """,
+<div class="metric-card">
+
+<div class="metric-value">
+{total_posts:,}
+</div>
+
+<div class="metric-label">
+Posts analyzed
+</div>
+
+</div>
+""",
             unsafe_allow_html=True,
         )
 
     with col2:
-        st.html(
-                f"""
-                <div class="metric-card">
-                    <div class="metric-value">
-                        {best_k}
-                    </div>
-                    <div class="metric-label">
-                        Topics discovered
-                    </div>
-                </div>
-                """,
+
+        st.markdown(
+            f"""
+<div class="metric-card">
+
+<div class="metric-value">
+{best_k}
+</div>
+
+<div class="metric-label">
+Topics discovered
+</div>
+
+</div>
+""",
             unsafe_allow_html=True,
         )
 
     with col3:
-        st.html(
+
+        st.markdown(
             f"""
-            <div class="metric-card">
-                <div class="metric-value">
-                    {avg_score:,.1f}
-                </div>
-                <div class="metric-label">
-                    Average score
-                </div>
-            </div>
-            """,
+<div class="metric-card">
+
+<div class="metric-value">
+{avg_score:,.1f}
+</div>
+
+<div class="metric-label">
+Average score
+</div>
+
+</div>
+""",
             unsafe_allow_html=True,
         )
 
     with col4:
-        st.html(
+
+        st.markdown(
             f"""
-            <div class="metric-card">
-                <div class="metric-value">
-                    {avg_comments:,.1f}
-                </div>
-                <div class="metric-label">
-                    Avg. comments
-                </div>
-            </div>
-            """,
+<div class="metric-card">
+
+<div class="metric-value">
+{avg_comments:,.1f}
+</div>
+
+<div class="metric-label">
+Avg. comments
+</div>
+
+</div>
+""",
             unsafe_allow_html=True,
         )
 
@@ -1994,7 +2197,9 @@ with tabs[0]:
         unsafe_allow_html=True,
     )
 
-    col_left, col_right = st.columns(2)
+    col_left, col_right = (
+        st.columns(2)
+    )
 
     with col_left:
 
@@ -2084,7 +2289,9 @@ with tabs[0]:
     )
 
     all_text = " ".join(
-        analysis_df["text"].astype(str)
+        analysis_df[
+            "text"
+        ].astype(str)
     )
 
     wordcloud_fig = create_wordcloud(
@@ -2092,17 +2299,19 @@ with tabs[0]:
     )
 
     if wordcloud_fig is not None:
+
         st.pyplot(
             wordcloud_fig,
             use_container_width=True,
         )
+
         plt.close(
             wordcloud_fig
         )
 
 
 # ============================================================
-# TOPICS
+# TOPICS TAB
 # ============================================================
 
 with tabs[1]:
@@ -2112,11 +2321,12 @@ with tabs[1]:
     )
 
     st.caption(
-        "Topics are discovered using MiniLM embeddings "
-        "and K-Means clustering."
+        "Topics are discovered using "
+        "MiniLM embeddings and K-Means clustering."
     )
 
     if not evidence:
+
         st.info(
             "No topics were available."
         )
@@ -2154,17 +2364,15 @@ with tabs[1]:
             False,
         )
 
-        # ----------------------------------------------------
-        # Sentiment for topic
-        # ----------------------------------------------------
-
         topic_df = analysis_df[
             analysis_df["topic"]
             == topic_id
         ]
 
         topic_sentiment = (
-            topic_df["sentiment"]
+            topic_df[
+                "sentiment"
+            ]
             .value_counts()
             .to_dict()
         )
@@ -2176,43 +2384,40 @@ with tabs[1]:
             "Neutral",
             "Negative",
         ]:
+
             count = topic_sentiment.get(
                 label,
                 0,
             )
 
             if count:
+
                 badges += (
-                    f'<span class="badge">'
+                    '<span class="badge">'
                     f'{html.escape(label)}: '
                     f'{count}'
-                    f'</span>'
+                    '</span>'
                 )
-
-        # ----------------------------------------------------
-        # Error
-        # ----------------------------------------------------
 
         error_html = ""
 
         if has_error:
-            error_html = f"""
-            <div style="
-                margin:1rem 0;
-                padding:0.75rem;
-                border:1px solid #555555;
-                border-radius:8px;
-                color:#aaaaaa !important;
-            ">
-                {html.escape(
-                    str(ai_reaction)
-                )}
-            </div>
-            """
 
-        # ----------------------------------------------------
-        # Representative posts
-        # ----------------------------------------------------
+            error_html = f"""
+<div style="
+margin:1rem 0;
+padding:0.75rem;
+border:1px solid #555555;
+border-radius:8px;
+color:#aaaaaa !important;
+">
+
+{html.escape(
+    str(ai_reaction)
+)}
+
+</div>
+"""
 
         rep_html = ""
 
@@ -2255,93 +2460,104 @@ with tabs[1]:
             )
 
             if url:
+
                 title_html = (
-                    f'<a class="post-link" '
+                    '<a class="post-link" '
                     f'href="{url}" '
-                    f'target="_blank">'
+                    'target="_blank">'
                     f'{title}'
-                    f'</a>'
+                    '</a>'
                 )
+
             else:
+
                 title_html = title
 
             rep_html += f"""
-            <li class="post-item">
-                <div class="post-title">
-                    {title_html}
-                </div>
+<li class="post-item">
 
-                <div class="post-meta">
-                    Score: {score:,.0f}
-                    &nbsp; • &nbsp;
-                    Comments: {comments:,.0f}
-                </div>
-            </li>
-            """
+<div class="post-title">
+{title_html}
+</div>
 
-        # ----------------------------------------------------
-        # TOPIC CARD
-        #
-        # IMPORTANT:
-        # This is intentionally st.markdown with
-        # unsafe_allow_html=True.
-        # Do NOT replace this with st.write(),
-        # st.text(), or st.code().
-        # ----------------------------------------------------
+<div class="post-meta">
+
+Score: {score:,.0f}
+
+&nbsp; • &nbsp;
+
+Comments: {comments:,.0f}
+
+</div>
+
+</li>
+"""
 
         st.markdown(
             f"""
-            <div class="reddit-card">
+<div class="reddit-card">
 
-                <div class="topic-title">
-                    {html.escape(
-                        str(ai_name)
-                    )}
-                </div>
+<div class="topic-title">
 
-                <div style="
-                    margin-bottom:1rem;
-                ">
-                    {badges}
-                </div>
+{html.escape(
+    str(ai_name)
+)}
 
-                <p>
-                    <b>Analysis:</b>
-                    {html.escape(
-                        str(ai_desc)
-                    )}
-                </p>
+</div>
 
-                <p>
-                    <b>Reaction Context:</b>
-                    {html.escape(
-                        str(ai_reaction)
-                    )}
-                </p>
+<div style="
+margin-bottom:1rem;
+">
 
-                {error_html}
+{badges}
 
-                <hr/>
+</div>
 
-                <p>
-                    <b>TOP POSTS IN TOPIC</b>
-                </p>
+<p>
 
-                <ul style="
-                    list-style-type:none;
-                    padding-left:0;
-                ">
-                    {rep_html}
-                </ul>
+<b>Analysis:</b>
 
-            </div>
-            """,
+{html.escape(
+    str(ai_desc)
+)}
+
+</p>
+
+<p>
+
+<b>Reaction Context:</b>
+
+{html.escape(
+    str(ai_reaction)
+)}
+
+</p>
+
+{error_html}
+
+<hr>
+
+<p>
+<b>TOP POSTS IN TOPIC</b>
+</p>
+
+<ul style="
+list-style-type:none;
+padding-left:0;
+">
+
+{rep_html}
+
+</ul>
+
+</div>
+""",
             unsafe_allow_html=True,
         )
 
 
 # ============================================================
-# REVIEW
+# REVIEW TAB
 # ============================================================
 
 with tabs[2]:
@@ -2380,45 +2596,49 @@ with tabs[2]:
 
         st.markdown(
             f"""
-            <div class="reddit-card">
+<div class="reddit-card">
 
-                <div class="topic-title">
-                    Summary
-                </div>
+<div class="topic-title">
+Summary
+</div>
 
-                <p>
-                    {html.escape(
-                        str(summary)
-                    )}
-                </p>
+<p>
 
-            </div>
-            """,
+{html.escape(
+    str(summary)
+)}
+
+</p>
+
+</div>
+""",
             unsafe_allow_html=True,
         )
 
-        col1, col2 = st.columns(2)
+        col1, col2 = (
+            st.columns(2)
+        )
 
         with col1:
 
             st.markdown(
                 f"""
-                <div class="reddit-card">
+<div class="reddit-card">
 
-                    <div class="topic-title">
-                        Dominant Topics
-                    </div>
+<div class="topic-title">
+Dominant Topics
+</div>
 
-                    <p>
-                        {html.escape(
-                            str(
-                                dominant_topics
-                            )
-                        )}
-                    </p>
+<p>
 
-                </div>
-                """,
+{html.escape(
+    str(dominant_topics)
+)}
+
+</p>
+
+</div>
+""",
                 unsafe_allow_html=True,
             )
 
@@ -2426,43 +2646,43 @@ with tabs[2]:
 
             st.markdown(
                 f"""
-                <div class="reddit-card">
+<div class="reddit-card">
 
-                    <div class="topic-title">
-                        Sentiment
-                    </div>
+<div class="topic-title">
+Sentiment
+</div>
 
-                    <p>
-                        {html.escape(
-                            str(
-                                sentiment_review
-                            )
-                        )}
-                    </p>
+<p>
 
-                </div>
-                """,
+{html.escape(
+    str(sentiment_review)
+)}
+
+</p>
+
+</div>
+""",
                 unsafe_allow_html=True,
             )
 
         st.markdown(
             f"""
-            <div class="reddit-card">
+<div class="reddit-card">
 
-                <div class="topic-title">
-                    Notable Signals
-                </div>
+<div class="topic-title">
+Notable Signals
+</div>
 
-                <p>
-                    {html.escape(
-                        str(
-                            notable_signals
-                        )
-                    )}
-                </p>
+<p>
 
-            </div>
-            """,
+{html.escape(
+    str(notable_signals)
+)}
+
+</p>
+
+</div>
+""",
             unsafe_allow_html=True,
         )
 
@@ -2475,7 +2695,7 @@ with tabs[2]:
 
 
 # ============================================================
-# DATA
+# DATA TAB
 # ============================================================
 
 with tabs[3]:
@@ -2500,7 +2720,8 @@ with tabs[3]:
                 "created",
                 "url",
             ]
-            if column in analysis_df.columns
+            if column
+            in analysis_df.columns
         ]
 
         st.dataframe(
@@ -2533,7 +2754,8 @@ with tabs[3]:
                 "sentiment",
                 "url",
             ]
-            if column in top_engaged.columns
+            if column
+            in top_engaged.columns
         ]
 
         st.dataframe(
