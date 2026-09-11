@@ -1704,7 +1704,7 @@ SUBREDDIT = st.session_state.get(
 # MAIN HEADER
 # ============================================================
 
-st.markdown(
+st.html(
     f"""
 <div class="reddit-header">
 
@@ -1726,8 +1726,7 @@ st.markdown(
     </div>
 
 </div>
-""",
-    unsafe_allow_html=True,
+"""
 )
 
 
