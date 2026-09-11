@@ -1,4 +1,3 @@
-```python
 import html
 import json
 import time
@@ -3645,4 +3644,3 @@ st.caption(
     "Results describe a high-engagement sample of fetched posts, "
     "not the entire subreddit population."
 )
-```
