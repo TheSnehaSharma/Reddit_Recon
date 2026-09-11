@@ -56,7 +56,7 @@ st.set_page_config(
 # DARK THEME — WHITE TEXT ONLY
 # ============================================================
 
-st.markdown(
+st.html(
     """
 <style>
 
@@ -257,8 +257,7 @@ div[data-baseweb="input"] * {
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
 >
-""",
-    unsafe_allow_html=True,
+"""
 )
 
 
@@ -1402,7 +1401,7 @@ def generate_word_cloud(df):
         figsize=(10, 5)
     )
 
-    fig.patch.set_facecolor("#111111")
+    fig.patch.set_facecolor="#111111")
     ax.set_facecolor("#111111")
 
     ax.imshow(
@@ -1419,7 +1418,7 @@ def generate_word_cloud(df):
 # SIDEBAR
 # ============================================================
 
-st.sidebar.markdown(
+st.sidebar.html(
     """
 <div style="
     font-size: 46px;
@@ -1428,8 +1427,7 @@ st.sidebar.markdown(
 ">
     <i class="fa-brands fa-reddit"></i>
 </div>
-""",
-    unsafe_allow_html=True,
+"""
 )
 
 st.sidebar.title("Recon Settings")
@@ -1596,7 +1594,7 @@ if submitted:
 
 if "result" not in st.session_state:
 
-    st.markdown(
+    st.html(
         """
 <div class="reddit-header">
     <div class="reddit-icon">
@@ -1612,8 +1610,7 @@ if "result" not in st.session_state:
         </p>
     </div>
 </div>
-""",
-        unsafe_allow_html=True,
+"""
     )
 
     st.write(
@@ -1752,38 +1749,35 @@ with tab1:
 
     with col1:
 
-        st.markdown(
+        st.html(
             f"""
 <div class="reddit-card">
     <h4>Total Fetched</h4>
     <h2>{len(raw_df):,}</h2>
 </div>
-""",
-            unsafe_allow_html=True,
+"""
         )
 
     with col2:
 
-        st.markdown(
+        st.html(
             f"""
 <div class="reddit-card">
     <h4>NLP Analyzed</h4>
     <h2>{len(analysis_df):,}</h2>
 </div>
-""",
-            unsafe_allow_html=True,
+"""
         )
 
     with col3:
 
-        st.markdown(
+        st.html(
             f"""
 <div class="reddit-card">
     <h4>Topics Discovered</h4>
     <h2>{best_k if best_k else "N/A"}</h2>
 </div>
-""",
-            unsafe_allow_html=True,
+"""
         )
 
     with col4:
@@ -1797,23 +1791,21 @@ with tab1:
                 "percentage",
             ].sum()
 
-        st.markdown(
+        st.html(
             f"""
 <div class="reddit-card">
     <h4>Positivity</h4>
     <h2>{pos_pct:.1f}%</h2>
 </div>
-""",
-            unsafe_allow_html=True,
+"""
         )
 
     c1, c2 = st.columns(2)
 
     with c1:
 
-        st.markdown(
-            '<div class="reddit-card">',
-            unsafe_allow_html=True,
+        st.html(
+            '<div class="reddit-card">'
         )
 
         st.subheader(
@@ -1846,16 +1838,14 @@ with tab1:
                 use_container_width=True,
             )
 
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True,
+        st.html(
+            "</div>"
         )
 
     with c2:
 
-        st.markdown(
-            '<div class="reddit-card">',
-            unsafe_allow_html=True,
+        st.html(
+            '<div class="reddit-card">'
         )
 
         st.subheader(
@@ -1915,9 +1905,8 @@ with tab1:
             use_container_width=True,
         )
 
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True,
+        st.html(
+            "</div>"
         )
 
 
@@ -2037,7 +2026,7 @@ with tab2:
 </p>
 """
 
-        st.markdown(
+        st.html(
             f"""
 <div class="reddit-card">
 
@@ -2077,8 +2066,7 @@ with tab2:
     </ul>
 
 </div>
-""",
-            unsafe_allow_html=True,
+"""
         )
 
 
@@ -2088,9 +2076,8 @@ with tab2:
 
 with tab3:
 
-    st.markdown(
-        '<div class="reddit-card">',
-        unsafe_allow_html=True,
+    st.html(
+        '<div class="reddit-card">'
     )
 
     st.subheader(
@@ -2109,14 +2096,12 @@ with tab3:
             "LLM summary is not available."
         )
 
-    st.markdown(
-        "</div>",
-        unsafe_allow_html=True,
+    st.html(
+        "</div>"
     )
 
-    st.markdown(
-        '<div class="reddit-card">',
-        unsafe_allow_html=True,
+    st.html(
+        '<div class="reddit-card">'
     )
 
     st.subheader(
@@ -2137,9 +2122,8 @@ with tab3:
             clear_figure=True,
         )
 
-    st.markdown(
-        "</div>",
-        unsafe_allow_html=True,
+    st.html(
+        "</div>"
     )
 
 
@@ -2149,9 +2133,8 @@ with tab3:
 
 with tab4:
 
-    st.markdown(
-        '<div class="reddit-card">',
-        unsafe_allow_html=True,
+    st.html(
+        '<div class="reddit-card">'
     )
 
     st.subheader(
@@ -2187,9 +2170,8 @@ with tab4:
         hide_index=True,
     )
 
-    st.markdown(
-        "</div>",
-        unsafe_allow_html=True,
+    st.html(
+        "</div>"
     )
 
 
@@ -2201,7 +2183,7 @@ with st.sidebar.expander(
     "About & Pipeline"
 ):
 
-    st.markdown(
+    st.html(
         f"""
 **Current Analysis**
 
