@@ -27,8 +27,6 @@ ARCTIC_URL = "https://arctic-shift.photon-reddit.com/api/posts/search"
 
 SENTIMENT_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-
-# Fixed GPT-OSS model — no model selector in UI
 LLM_MODEL = "openai/gpt-oss-20b"
 
 DEFAULT_BATCH_SIZE = 16
@@ -42,20 +40,15 @@ EMBEDDING_BATCH_SIZE = 32
 
 # ============================================================
 # PAGE CONFIG
-# Official Reddit favicon — browser/page icon only
 # ============================================================
 
 st.set_page_config(
     page_title="Reddit Recon",
-    page_icon="https://www.redditstatic.com/desktop2x/img/favicon/favicon-96x96.png",
+    page_icon="https://www.reddit.com/favicon.ico",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-
-# ============================================================
-# DARK THEME — WHITE TEXT ONLY
-# ============================================================
 
 st.html(
     """
@@ -74,7 +67,6 @@ st.html(
     background: #111111;
 }
 
-/* Force normal Streamlit text to white */
 html,
 body,
 [class*="css"],
@@ -128,7 +120,7 @@ section[data-testid="stSidebar"] * {
 }
 
 .reddit-header .reddit-icon i {
-    color: #ffffff !important;
+    color: #ffffff;
 }
 
 .reddit-header h1 {
@@ -141,7 +133,7 @@ section[data-testid="stSidebar"] * {
 
 .reddit-header p {
     margin: 5px 0 0 0;
-    color: #ffffff !important;
+    color: #ffffff;
     font-size: 0.95rem;
 }
 
@@ -445,7 +437,7 @@ def load_embedding_model():
 # FETCH REDDIT
 # ============================================================
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner="Fetching Reddit Data")
 def fetch_reddit_posts(subreddit, posts_to_fetch, days_back):
 
     now = int(time.time())
@@ -1337,7 +1329,7 @@ Evidence:
                 }
             ],
             temperature=0.3,
-            max_completion_tokens=800,
+            max_completion_tokens=1000,
         )
 
         return (
@@ -1524,7 +1516,7 @@ st.sidebar.html(
 >
 
 <div class="reddit-sidebar-icon">
-    <i class="fa-brands fa-reddit"></i>
+    <i class="fa fa-reddit" aria-hidden="true"></i>
 </div>
 """
 )
@@ -1698,7 +1690,7 @@ if "result" not in st.session_state:
 <div class="reddit-header">
 
     <div class="reddit-icon">
-        <i class="fa-brands fa-reddit"></i>
+        <i class="fa fa-reddit" aria-hidden="true"></i>
     </div>
 
     <div>
@@ -1800,7 +1792,6 @@ SUBREDDIT = st.session_state.get(
 
 # ============================================================
 # MAIN HEADER
-# Font Awesome icon — NOT Reddit image
 # ============================================================
 
 st.html(
@@ -1808,7 +1799,7 @@ st.html(
 <div class="reddit-header">
 
     <div class="reddit-icon">
-        <i class="fa-brands fa-reddit"></i>
+        <i class="fa fa-reddit" aria-hidden="true"></i>
     </div>
 
     <div>
@@ -1819,7 +1810,7 @@ st.html(
 
         <p>
             Analyzed top {len(analysis_df):,} posts
-            from the last {days_back} day(s).
+            from the last {days_back} days.
         </p>
 
     </div>
@@ -2690,7 +2681,7 @@ with st.sidebar.expander(
 <li><strong>AI:</strong> <code>{html.escape(LLM_MODEL)}</code></li>
 </ul>
 
-<strong>Pipeline</strong>
+<strong>Description</strong>
 
 <p>
 Reddit → Sentiment → Embeddings →
