@@ -28,71 +28,16 @@ ARCTIC_URL = "https://arctic-shift.photon-reddit.com/api/posts/search"
 SENTIMENT_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
-# Fixed AI model — no model selection in UI
+# Fixed GPT-OSS model — no model selector in UI
 LLM_MODEL = "openai/gpt-oss-20b"
 
-DEFAULT_DAYS_BACK = 1
-DEFAULT_POSTS_TO_FETCH = 300
-DEFAULT_TOP_POSTS = 100
-
-# Fixed internal performance settings
-SENTIMENT_BATCH_SIZE = 16
-AI_WORKER_THREADS = 3
-EMBEDDING_BATCH_SIZE = 32
+DEFAULT_BATCH_SIZE = 16
+DEFAULT_WORKERS = 3
 
 RANDOM_STATE = 42
 MAX_FETCH_RETRIES = 4
 MAX_TEXT_CHARS = 2500
-TOP_POSTS_PER_TOPIC = 5
-
-REDDIT_ORANGE = "#FF4500"
-REDDIT_BLUE = "#0079D3"
-REDDIT_DARK = "#1A1A1B"
-REDDIT_BG = "#DAE0E6"
-CARD_BORDER = "#EDEFF1"
-
-REDDIT_ICON_URL = (
-    "https://www.redditstatic.com/desktop2x/img/favicon/"
-    "apple-icon-180x180.png"
-)
-
-SENTIMENT_COLORS = {
-    "positive": "#2AA96D",
-    "neutral": "#878A8C",
-    "negative": REDDIT_ORANGE,
-}
-
-CUSTOM_STOPWORDS = {
-    "reddit",
-    "post",
-    "posts",
-    "people",
-    "really",
-    "just",
-    "like",
-    "think",
-    "thing",
-    "things",
-    "want",
-    "got",
-    "get",
-    "going",
-    "does",
-    "did",
-    "said",
-    "say",
-    "know",
-    "use",
-    "used",
-    "using",
-    "amp",
-    "https",
-    "http",
-    "www",
-    "com",
-    "removed",
-    "deleted",
-}
+EMBEDDING_BATCH_SIZE = 32
 
 
 # ============================================================
@@ -101,330 +46,217 @@ CUSTOM_STOPWORDS = {
 
 st.set_page_config(
     page_title="Reddit Recon",
-    page_icon=REDDIT_ICON_URL,
+    page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
 # ============================================================
-# REDDIT UI THEME
+# DARK THEME — WHITE TEXT ONLY
 # ============================================================
 
 st.markdown(
-    f"""
+    """
     <style>
 
-    html, body, [class*="css"] {{
-        font-family:
-            "IBM Plex Sans",
-            "Noto Sans",
-            Arial,
-            sans-serif;
-    }}
+    /* ========================================================
+       GLOBAL
+       ======================================================== */
 
-    .stApp {{
-        background-color: {REDDIT_BG};
-    }}
+    .stApp {
+        background: #111111;
+        color: #ffffff;
+    }
 
-    /* --------------------------------------------------------
+    .main {
+        background: #111111;
+    }
+
+    /* Force normal Streamlit text to white */
+    html,
+    body,
+    [class*="css"],
+    p,
+    span,
+    div,
+    label,
+    li,
+    td,
+    th {
+        color: #ffffff;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+    }
+
+    /* ========================================================
        SIDEBAR
-    -------------------------------------------------------- */
+       ======================================================== */
 
-    section[data-testid="stSidebar"] {{
-        background-color: {REDDIT_DARK};
-        border-right: 1px solid #343536;
-    }}
+    section[data-testid="stSidebar"] {
+        background: #111111;
+        border-right: 1px solid #2a2a2a;
+    }
 
-    section[data-testid="stSidebar"] * {{
-        color: #D7DADC !important;
-    }}
+    section[data-testid="stSidebar"] * {
+        color: #ffffff !important;
+    }
 
-    section[data-testid="stSidebar"] input,
-    section[data-testid="stSidebar"] textarea {{
-        color: #1A1A1B !important;
-        background-color: white !important;
-    }}
+    /* ========================================================
+       HEADER
+       ======================================================== */
 
-    section[data-testid="stSidebar"] [data-baseweb="select"] {{
-        background-color: #272729;
-    }}
-
-    section[data-testid="stSidebar"] .stButton button {{
-        border-radius: 7px;
-    }}
-
-    /* --------------------------------------------------------
-       HERO
-    -------------------------------------------------------- */
-
-    .hero {{
+    .reddit-header {
         display: flex;
         align-items: center;
-        gap: 0.9rem;
-        padding: 1.15rem 1.5rem;
-        border-radius: 10px;
-        background: {REDDIT_ORANGE};
-        color: white;
-        margin-bottom: 1rem;
-        box-shadow: 0 2px 5px rgba(0,0,0,.16);
-    }}
+        background: #111111;
+        padding: 1.2rem 0;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid #2a2a2a;
+    }
 
-    .hero img {{
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: white;
-        padding: 4px;
-        flex-shrink: 0;
-    }}
+    .reddit-header .reddit-icon {
+        font-size: 58px;
+        margin-right: 20px;
+        color: #ffffff;
+        line-height: 1;
+    }
 
-    .hero h1 {{
+    .reddit-header h1 {
         margin: 0;
-        font-size: 1.75rem;
-        line-height: 1.2;
+        padding: 0;
+        font-size: 2.2rem;
+        color: #ffffff !important;
         font-weight: 700;
-    }}
+    }
 
-    .hero p {{
-        margin: .25rem 0 0;
-        opacity: .95;
-        font-size: .9rem;
-    }}
+    .reddit-header p {
+        margin: 5px 0 0 0;
+        color: #ffffff !important;
+        font-size: 0.95rem;
+    }
 
-    /* --------------------------------------------------------
-       METRIC CARDS
-    -------------------------------------------------------- */
-
-    .metric-card {{
-        border: 1px solid {CARD_BORDER};
-        border-radius: 9px;
-        padding: 1rem 1.1rem;
-        background: white;
-        min-height: 105px;
-        box-shadow: 0 1px 2px rgba(0,0,0,.06);
-        transition: transform .15s ease, box-shadow .15s ease;
-    }}
-
-    .metric-card:hover {{
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,.08);
-    }}
-
-    .metric-label {{
-        color: #787C7E;
-        font-size: .78rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: .035em;
-        margin-bottom: .25rem;
-    }}
-
-    .metric-value {{
-        color: {REDDIT_DARK};
-        font-size: 1.7rem;
-        line-height: 1.2;
-        font-weight: 750;
-    }}
-
-    /* --------------------------------------------------------
+    /* ========================================================
        CARDS
-    -------------------------------------------------------- */
+       ======================================================== */
 
-    .reddit-card {{
-        border: 1px solid {CARD_BORDER};
-        border-radius: 8px;
-        padding: 1rem 1.15rem;
-        margin-bottom: .8rem;
-        background: white;
-        box-shadow: 0 1px 1px rgba(0,0,0,.05);
-    }}
-
-    .reddit-card:hover {{
-        border-color: #898989;
-    }}
-
-    .chart-card {{
-        border: 1px solid {CARD_BORDER};
-        border-radius: 9px;
-        padding: .85rem 1rem .5rem;
-        background: white;
-        box-shadow: 0 1px 2px rgba(0,0,0,.05);
-        margin-bottom: .8rem;
-    }}
-
-    /* --------------------------------------------------------
-       TOPIC CARDS
-    -------------------------------------------------------- */
-
-    .topic-card {{
-        border: 1px solid {CARD_BORDER};
-        border-left: 4px solid {REDDIT_ORANGE};
-        border-radius: 8px;
-        padding: 1rem 1.15rem;
+    .reddit-card {
+        background: #111111;
+        border: 1px solid #2a2a2a;
+        border-radius: 6px;
+        padding: 1.25rem;
         margin-bottom: 1rem;
-        background: white;
-        box-shadow: 0 1px 2px rgba(0,0,0,.05);
-    }}
+    }
 
-    .topic-card:hover {{
-        box-shadow: 0 4px 12px rgba(0,0,0,.07);
-    }}
-
-    .topic-title {{
-        color: {REDDIT_DARK};
-        font-size: 1.1rem;
+    .topic-title {
+        color: #ffffff !important;
         font-weight: 700;
-        margin-bottom: .45rem;
-    }}
+        font-size: 1.35rem;
+        margin-bottom: 0.5rem;
+    }
 
-    .topic-meta {{
-        color: #787C7E;
-        font-size: .82rem;
-        margin-bottom: .7rem;
-    }}
-
-    .topic-section-label {{
-        color: #787C7E;
-        font-size: .72rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        margin-top: .85rem;
-        margin-bottom: .35rem;
-    }}
-
-    /* --------------------------------------------------------
+    /* ========================================================
        BADGES
-    -------------------------------------------------------- */
+       ======================================================== */
 
-    .badge {{
+    .badge {
         display: inline-block;
-        padding: .17rem .62rem;
+        padding: 0.15rem 0.65rem;
         border-radius: 999px;
-        font-size: .75rem;
-        font-weight: 650;
-        color: white;
-        margin-right: .3rem;
-        margin-bottom: .25rem;
-    }}
-
-    /* --------------------------------------------------------
-       KEYWORD CHIPS
-    -------------------------------------------------------- */
-
-    .keyword-chip {{
-        display: inline-block;
-        padding: .13rem .55rem;
-        border-radius: 999px;
-        background: #FFE8DE;
-        color: #B33500;
-        font-size: .76rem;
-        margin: .13rem .2rem .13rem 0;
-        font-weight: 600;
-    }}
-
-    /* --------------------------------------------------------
-       AI CARD
-    -------------------------------------------------------- */
-
-    .ai-card {{
-        border-left: 4px solid {REDDIT_BLUE};
-        padding: .95rem 1.1rem;
-        margin: .6rem 0 .9rem;
-        background: #EEF7FF;
-        border-radius: 8px;
-    }}
-
-    .ai-label {{
-        color: #0066A1;
+        font-size: 0.75rem;
         font-weight: 700;
-        font-size: .8rem;
-        text-transform: uppercase;
-        letter-spacing: .025em;
-    }}
+        color: #ffffff !important;
+        margin-right: 0.5rem;
+        border: 1px solid #444444;
+    }
 
-    /* --------------------------------------------------------
-       POST LIST
-    -------------------------------------------------------- */
+    /* ========================================================
+       LINKS
+       ======================================================== */
 
-    .post-item {{
-        padding: .65rem 0;
-        border-bottom: 1px solid #F0F1F2;
-    }}
+    a {
+        color: #ffffff !important;
+    }
 
-    .post-item:last-child {{
-        border-bottom: none;
-    }}
-
-    .post-title {{
-        color: #0079D3;
-        font-weight: 650;
-        text-decoration: none;
-    }}
-
-    .post-title:hover {{
+    a:hover {
+        color: #ffffff !important;
         text-decoration: underline;
-    }}
+    }
 
-    .post-meta {{
-        color: #878A8C;
-        font-size: .77rem;
-        margin-top: .15rem;
-    }}
+    /* ========================================================
+       INPUTS
+       ======================================================== */
 
-    /* --------------------------------------------------------
-       STATUS / EMPTY STATE
-    -------------------------------------------------------- */
+    input,
+    textarea,
+    select {
+        color: #ffffff !important;
+        background-color: #181818 !important;
+    }
 
-    .empty-state {{
-        background: white;
-        border: 1px solid {CARD_BORDER};
-        border-radius: 10px;
-        padding: 2.5rem;
-        text-align: center;
-        box-shadow: 0 1px 2px rgba(0,0,0,.05);
-    }}
+    /* ========================================================
+       STREAMLIT BUTTON
+       ======================================================== */
 
-    .empty-state-icon {{
-        font-size: 2.3rem;
-        margin-bottom: .5rem;
-    }}
+    button {
+        color: #ffffff !important;
+    }
 
-    /* --------------------------------------------------------
-       STREAMLIT POLISH
-    -------------------------------------------------------- */
+    /* ========================================================
+       DIVIDERS
+       ======================================================== */
 
-    div[data-testid="stMetric"] {{
-        background: white;
-        border: 1px solid {CARD_BORDER};
-        border-radius: 8px;
-        padding: .75rem;
-    }}
+    hr {
+        border-color: #2a2a2a !important;
+    }
 
-    div[data-testid="stTabs"] button {{
-        font-weight: 600;
-    }}
+    /* ========================================================
+       DATAFRAME
+       ======================================================== */
 
-    div[data-testid="stDownloadButton"] button {{
-        border-radius: 7px;
-    }}
+    [data-testid="stDataFrame"] {
+        border: 1px solid #2a2a2a;
+    }
 
-    @media (max-width: 900px) {{
-        .hero {{
-            padding: 1rem;
-        }}
+    /* ========================================================
+       METRICS
+       ======================================================== */
 
-        .hero h1 {{
-            font-size: 1.4rem;
-        }}
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricLabel"] {
+        color: #ffffff !important;
+    }
 
-        .metric-card {{
-            min-height: 90px;
-        }}
-    }}
+    /* ========================================================
+       CAPTIONS / INFO
+       ======================================================== */
+
+    .stCaption {
+        color: #ffffff !important;
+    }
+
+    /* ========================================================
+       FILE / SELECT / FORM ELEMENTS
+       ======================================================== */
+
+    div[data-baseweb="select"] * {
+        color: #ffffff !important;
+        background-color: #181818 !important;
+    }
+
+    div[data-baseweb="input"] * {
+        color: #ffffff !important;
+    }
 
     </style>
+
+    <!-- Font Awesome -->
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+    >
     """,
     unsafe_allow_html=True,
 )
@@ -448,6 +280,15 @@ def get_groq_key():
         return ""
 
 
+def sentiment_badge(label, pct=None):
+    text = label.capitalize() if pct is None else f"{label.capitalize()} {pct:.0f}%"
+
+    # White-only theme
+    return (
+        f'<span class="badge">{html.escape(text)}</span>'
+    )
+
+
 def normalize_subreddit(value):
     value = value.strip()
 
@@ -457,66 +298,16 @@ def normalize_subreddit(value):
     return value.strip().replace(" ", "")
 
 
-def sentiment_badge(label, pct=None):
-    color = SENTIMENT_COLORS.get(label, "#878A8C")
-
-    text = (
-        label.capitalize()
-        if pct is None
-        else f"{label.capitalize()} {pct:.0f}%"
-    )
-
-    return (
-        f'<span class="badge" '
-        f'style="background:{color};">'
-        f'{html.escape(text)}'
-        f'</span>'
-    )
-
-
-def fallback_topic_name(keywords):
-    if not keywords:
-        return "Uncategorized discussion"
-
-    return " / ".join(
-        str(k).title()
-        for k in keywords[:3]
-    )
-
-
-def format_number(value):
-    try:
-        value = float(value)
-
-        if abs(value) >= 1_000_000:
-            return f"{value / 1_000_000:.1f}M"
-
-        if abs(value) >= 1_000:
-            return f"{value / 1_000:.1f}K"
-
-        return f"{value:,.0f}"
-
-    except Exception:
-        return "0"
-
-
 # ============================================================
-# HTTP SESSION
+# HTTP
 # ============================================================
 
 @st.cache_resource
 def get_http_session():
-
     retry = Retry(
         total=MAX_FETCH_RETRIES,
         backoff_factor=0.6,
-        status_forcelist=(
-            429,
-            500,
-            502,
-            503,
-            504,
-        ),
+        status_forcelist=(429, 500, 502, 503, 504),
         allowed_methods=frozenset(["GET"]),
         respect_retry_after_header=True,
     )
@@ -528,17 +319,11 @@ def get_http_session():
     )
 
     session = requests.Session()
+    session.mount("https://", adapter)
 
-    session.mount(
-        "https://",
-        adapter,
-    )
-
-    session.headers.update(
-        {
-            "User-Agent": "reddit-recon-streamlit/3.0"
-        }
-    )
+    session.headers.update({
+        "User-Agent": "reddit-recon-ui/3.0"
+    })
 
     return session
 
@@ -547,11 +332,8 @@ def get_http_session():
 # MODELS
 # ============================================================
 
-@st.cache_resource(
-    show_spinner="Loading sentiment model..."
-)
+@st.cache_resource(show_spinner="Loading sentiment model...")
 def load_sentiment_model():
-
     return pipeline(
         "text-classification",
         model=SENTIMENT_MODEL,
@@ -562,18 +344,10 @@ def load_sentiment_model():
     )
 
 
-@st.cache_resource(
-    show_spinner="Loading topic embedding model..."
-)
+@st.cache_resource(show_spinner="Loading embedding model...")
 def load_embedding_model():
-
-    tokenizer = AutoTokenizer.from_pretrained(
-        EMBEDDING_MODEL
-    )
-
-    model = AutoModel.from_pretrained(
-        EMBEDDING_MODEL
-    )
+    tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL)
+    model = AutoModel.from_pretrained(EMBEDDING_MODEL)
 
     model.eval()
 
@@ -581,35 +355,19 @@ def load_embedding_model():
 
 
 # ============================================================
-# REDDIT DATA
+# FETCH REDDIT
 # ============================================================
 
-@st.cache_data(
-    ttl=900,
-    show_spinner=False
-)
-def fetch_reddit_posts(
-    subreddit,
-    posts_to_fetch,
-    days_back,
-):
+@st.cache_data(ttl=900, show_spinner=False)
+def fetch_reddit_posts(subreddit, posts_to_fetch, days_back):
 
     now = int(time.time())
 
-    cutoff = (
-        now
-        - days_back * 24 * 60 * 60
-    )
-
+    cutoff = now - days_back * 24 * 60 * 60
     before = now
 
     page_size = 100
-
-    max_pages = int(
-        np.ceil(
-            posts_to_fetch / page_size
-        )
-    )
+    max_pages = int(np.ceil(posts_to_fetch / page_size))
 
     session = get_http_session()
 
@@ -617,9 +375,8 @@ def fetch_reddit_posts(
     seen_ids = set()
 
     fields = (
-        "id,created_utc,score,"
-        "num_comments,subreddit,"
-        "title,selftext,url"
+        "id,created_utc,score,num_comments,"
+        "subreddit,title,selftext,url"
     )
 
     for _ in range(max_pages):
@@ -635,7 +392,6 @@ def fetch_reddit_posts(
         }
 
         try:
-
             response = session.get(
                 ARCTIC_URL,
                 params=params,
@@ -643,21 +399,17 @@ def fetch_reddit_posts(
             )
 
             response.raise_for_status()
-
             payload = response.json()
 
         except requests.RequestException as exc:
-
-            st.warning(
-                f"Arctic Shift request failed: {exc}"
-            )
-
+            st.warning(f"Reddit data request failed: {exc}")
             break
 
-        batch = payload.get(
-            "data",
-            []
-        )
+        except ValueError:
+            st.warning("Reddit API returned invalid JSON.")
+            break
+
+        batch = payload.get("data", [])
 
         if not batch:
             break
@@ -668,17 +420,11 @@ def fetch_reddit_posts(
 
             post_id = item.get("id")
 
-            if (
-                not post_id
-                or post_id in seen_ids
-            ):
+            if not post_id or post_id in seen_ids:
                 continue
 
             created = safe_int(
-                item.get(
-                    "created_utc",
-                    0,
-                )
+                item.get("created_utc", 0)
             )
 
             if created < cutoff:
@@ -686,42 +432,20 @@ def fetch_reddit_posts(
 
             seen_ids.add(post_id)
 
-            posts.append(
-                {
-                    "id": post_id,
-                    "title": str(
-                        item.get("title")
-                        or ""
-                    ),
-                    "selftext": str(
-                        item.get("selftext")
-                        or ""
-                    ),
-                    "score": safe_int(
-                        item.get(
-                            "score",
-                            0,
-                        )
-                    ),
-                    "num_comments": safe_int(
-                        item.get(
-                            "num_comments",
-                            0,
-                        )
-                    ),
-                    "created_utc": created,
-                    "url": str(
-                        item.get("url")
-                        or ""
-                    ),
-                    "subreddit": str(
-                        item.get(
-                            "subreddit"
-                        )
-                        or subreddit
-                    ),
-                }
-            )
+            posts.append({
+                "id": post_id,
+                "title": str(item.get("title") or ""),
+                "selftext": str(item.get("selftext") or ""),
+                "score": safe_int(item.get("score", 0)),
+                "num_comments": safe_int(
+                    item.get("num_comments", 0)
+                ),
+                "created_utc": created,
+                "url": str(item.get("url") or ""),
+                "subreddit": str(
+                    item.get("subreddit") or subreddit
+                ),
+            })
 
             if (
                 oldest_timestamp is None
@@ -732,20 +456,19 @@ def fetch_reddit_posts(
             if len(posts) >= posts_to_fetch:
                 break
 
-        if len(posts) >= posts_to_fetch:
-            break
-
         if (
-            oldest_timestamp is None
+            len(posts) >= posts_to_fetch
+            or oldest_timestamp is None
             or oldest_timestamp <= cutoff
         ):
             break
 
-        before = (
-            oldest_timestamp - 1
-        )
+        before = oldest_timestamp - 1
 
         time.sleep(0.15)
+
+    if not posts:
+        return pd.DataFrame()
 
     return (
         pd.DataFrame(posts)
@@ -755,13 +478,10 @@ def fetch_reddit_posts(
 
 
 # ============================================================
-# CLEANING / SELECTION
+# CLEANING
 # ============================================================
 
-def clean_posts(
-    df,
-    min_text_length=20,
-):
+def clean_posts(df, min_text_length=20):
 
     if df.empty:
         return df.copy()
@@ -784,23 +504,21 @@ def clean_posts(
         result["title"]
         + " "
         + result["selftext"]
-    ).str.replace(
-        r"\s+",
-        " ",
-        regex=True,
-    ).str.strip()
+    )
+
+    result["text"] = (
+        result["text"]
+        .str.replace(r"\s+", " ", regex=True)
+        .str.strip()
+    )
 
     result = result[
-        result["text"].str.len()
-        >= min_text_length
+        result["text"].str.len() >= min_text_length
     ].copy()
 
     result["model_text"] = (
         result["text"]
-        .str.slice(
-            0,
-            MAX_TEXT_CHARS,
-        )
+        .str.slice(0, MAX_TEXT_CHARS)
     )
 
     return (
@@ -810,10 +528,7 @@ def clean_posts(
     )
 
 
-def select_top_posts(
-    df,
-    top_posts,
-):
+def select_top_posts(df, top_posts):
 
     if df.empty:
         return df.copy()
@@ -824,12 +539,7 @@ def select_top_posts(
             ascending=False,
             kind="stable",
         )
-        .head(
-            min(
-                top_posts,
-                len(df),
-            )
-        )
+        .head(min(top_posts, len(df)))
         .reset_index(drop=True)
     )
 
@@ -838,7 +548,7 @@ def select_top_posts(
 # SENTIMENT
 # ============================================================
 
-def analyze_sentiment(df):
+def analyze_sentiment(df, batch_size):
 
     if df.empty:
         return df.copy()
@@ -849,13 +559,11 @@ def analyze_sentiment(df):
 
     predictions = model(
         result["model_text"].tolist(),
-        batch_size=SENTIMENT_BATCH_SIZE,
+        batch_size=batch_size,
     )
 
     result["sentiment"] = [
-        p["label"]
-        .lower()
-        .strip()
+        str(p["label"]).lower().strip()
         for p in predictions
     ]
 
@@ -871,17 +579,12 @@ def analyze_sentiment(df):
 # EMBEDDINGS
 # ============================================================
 
-def mean_pool(
-    last_hidden_state,
-    attention_mask,
-):
+def mean_pool(last_hidden_state, attention_mask):
 
     mask = (
         attention_mask
         .unsqueeze(-1)
-        .expand(
-            last_hidden_state.size()
-        )
+        .expand(last_hidden_state.size())
         .float()
     )
 
@@ -900,9 +603,7 @@ def mean_pool(
 
 def encode_minilm(texts):
 
-    tokenizer, model = (
-        load_embedding_model()
-    )
+    tokenizer, model = load_embedding_model()
 
     vectors = []
 
@@ -913,8 +614,7 @@ def encode_minilm(texts):
     ):
 
         batch = texts[
-            start:start
-            + EMBEDDING_BATCH_SIZE
+            start:start + EMBEDDING_BATCH_SIZE
         ]
 
         encoded = tokenizer(
@@ -927,30 +627,21 @@ def encode_minilm(texts):
 
         with torch.inference_mode():
 
-            output = model(
-                **encoded
-            )
+            output = model(**encoded)
 
             pooled = mean_pool(
                 output.last_hidden_state,
-                encoded[
-                    "attention_mask"
-                ],
+                encoded["attention_mask"],
             )
 
-            pooled = (
-                torch.nn.functional
-                .normalize(
-                    pooled,
-                    p=2,
-                    dim=1,
-                )
+            pooled = torch.nn.functional.normalize(
+                pooled,
+                p=2,
+                dim=1,
             )
 
         vectors.append(
-            pooled
-            .cpu()
-            .numpy()
+            pooled.cpu().numpy()
         )
 
     return np.vstack(vectors)
@@ -965,14 +656,9 @@ def discover_topics(df):
     if len(df) < 3:
 
         result = df.copy()
-
         result["topic_id"] = 0
 
-        return (
-            result,
-            pd.DataFrame(),
-            1,
-        )
+        return result, pd.DataFrame(), 1
 
     embeddings = encode_minilm(
         df["model_text"].tolist()
@@ -986,21 +672,13 @@ def discover_topics(df):
     if max_k < 3:
 
         result = df.copy()
-
         result["topic_id"] = 0
 
-        return (
-            result,
-            pd.DataFrame(),
-            1,
-        )
+        return result, pd.DataFrame(), 1
 
     silhouette_results = []
 
-    for k in range(
-        3,
-        max_k + 1,
-    ):
+    for k in range(3, max_k + 1):
 
         try:
 
@@ -1014,9 +692,7 @@ def discover_topics(df):
                 embeddings
             )
 
-            if len(
-                np.unique(labels)
-            ) < 2:
+            if len(np.unique(labels)) < 2:
                 continue
 
             score = silhouette_score(
@@ -1025,14 +701,10 @@ def discover_topics(df):
                 metric="cosine",
             )
 
-            silhouette_results.append(
-                {
-                    "k": k,
-                    "silhouette_score": float(
-                        score
-                    ),
-                }
-            )
+            silhouette_results.append({
+                "k": k,
+                "silhouette_score": float(score),
+            })
 
         except Exception:
             continue
@@ -1053,9 +725,7 @@ def discover_topics(df):
         result = df.copy()
 
         result["topic_id"] = (
-            final_model.fit_predict(
-                embeddings
-            )
+            final_model.fit_predict(embeddings)
         )
 
         return (
@@ -1070,9 +740,7 @@ def discover_topics(df):
 
     best_k = int(
         silhouette_df.loc[
-            silhouette_df[
-                "silhouette_score"
-            ].idxmax(),
+            silhouette_df["silhouette_score"].idxmax(),
             "k",
         ]
     )
@@ -1086,9 +754,7 @@ def discover_topics(df):
     result = df.copy()
 
     result["topic_id"] = (
-        final_model.fit_predict(
-            embeddings
-        )
+        final_model.fit_predict(embeddings)
     )
 
     return (
@@ -1099,13 +765,10 @@ def discover_topics(df):
 
 
 # ============================================================
-# TF-IDF KEYWORDS
+# TOPIC KEYWORDS
 # ============================================================
 
-def extract_topic_keywords(
-    df,
-    top_n=10,
-):
+def extract_topic_keywords(df, top_n=10):
 
     if (
         df.empty
@@ -1113,34 +776,53 @@ def extract_topic_keywords(
     ):
         return {}
 
-    stopwords = (
-        set(ENGLISH_STOP_WORDS)
-        | CUSTOM_STOPWORDS
+    stopwords = set(
+        ENGLISH_STOP_WORDS
     )
+
+    stopwords.update({
+        "reddit",
+        "post",
+        "posts",
+        "people",
+        "really",
+        "just",
+        "like",
+        "think",
+        "thing",
+        "things",
+        "want",
+        "got",
+        "get",
+        "going",
+        "does",
+        "did",
+        "said",
+        "say",
+        "know",
+        "use",
+        "used",
+        "using",
+    })
 
     try:
 
         vectorizer = TfidfVectorizer(
-            stop_words=list(
-                stopwords
-            ),
+            stop_words=list(stopwords),
             max_features=4000,
             ngram_range=(1, 2),
             min_df=2,
         )
 
-        matrix = (
-            vectorizer.fit_transform(
-                df["model_text"]
-            )
+        matrix = vectorizer.fit_transform(
+            df["model_text"]
         )
 
     except ValueError:
         return {}
 
     feature_names = np.array(
-        vectorizer
-        .get_feature_names_out()
+        vectorizer.get_feature_names_out()
     )
 
     keywords = {}
@@ -1150,8 +832,7 @@ def extract_topic_keywords(
     ):
 
         indexes = np.where(
-            df["topic_id"].values
-            == topic_id
+            df["topic_id"].values == topic_id
         )[0]
 
         topic_scores = (
@@ -1161,17 +842,12 @@ def extract_topic_keywords(
         )
 
         top_indexes = (
-            topic_scores.argsort()[
-                ::-1
-            ][:top_n]
+            topic_scores
+            .argsort()[::-1][:top_n]
         )
 
-        keywords[
-            int(topic_id)
-        ] = (
-            feature_names[
-                top_indexes
-            ].tolist()
+        keywords[int(topic_id)] = (
+            feature_names[top_indexes].tolist()
         )
 
     return keywords
@@ -1202,15 +878,11 @@ def calculate_engagement(df):
     )
 
     result["log_score"] = np.log1p(
-        result["score"].clip(
-            lower=0
-        )
+        result["score"].clip(lower=0)
     )
 
     result["log_comments"] = np.log1p(
-        result["num_comments"].clip(
-            lower=0
-        )
+        result["num_comments"].clip(lower=0)
     )
 
     result["engagement"] = (
@@ -1221,10 +893,7 @@ def calculate_engagement(df):
     return result
 
 
-def get_top_engaged_posts(
-    df,
-    n=10,
-):
+def get_top_engaged_posts(df, n=10):
 
     columns = [
         "title",
@@ -1232,14 +901,12 @@ def get_top_engaged_posts(
         "num_comments",
         "sentiment",
         "topic_id",
-        "topic_name",
         "engagement",
         "url",
     ]
 
     available = [
-        c
-        for c in columns
+        c for c in columns
         if c in df.columns
     ]
 
@@ -1254,13 +921,16 @@ def get_top_engaged_posts(
     )
 
 
+# ============================================================
+# SENTIMENT SUMMARY
+# ============================================================
+
 def sentiment_summary(df):
 
     if (
         df.empty
         or "sentiment" not in df.columns
     ):
-
         return pd.DataFrame(
             columns=[
                 "sentiment",
@@ -1273,9 +943,7 @@ def sentiment_summary(df):
         df["sentiment"]
         .value_counts()
         .rename_axis("sentiment")
-        .reset_index(
-            name="count"
-        )
+        .reset_index(name="count")
     )
 
     summary["percentage"] = (
@@ -1294,7 +962,7 @@ def sentiment_summary(df):
 def create_topic_evidence(
     df,
     keywords,
-    top_n_posts=TOP_POSTS_PER_TOPIC,
+    top_n_posts=5,
 ):
 
     evidence = []
@@ -1320,80 +988,42 @@ def create_topic_evidence(
 
         for _, row in representative.iterrows():
 
-            posts.append(
-                {
-                    "title": str(
-                        row.get(
-                            "title",
-                            "",
-                        )
-                    ),
-                    "text": str(
-                        row.get(
-                            "selftext",
-                            "",
-                        )
-                    )[:1000],
-                    "score": safe_int(
-                        row.get(
-                            "score",
-                            0,
-                        )
-                    ),
-                    "comments": safe_int(
-                        row.get(
-                            "num_comments",
-                            0,
-                        )
-                    ),
-                }
-            )
+            posts.append({
+                "title": str(
+                    row.get("title", "")
+                ),
+                "text": str(
+                    row.get("selftext", "")
+                )[:1000],
+                "score": safe_int(
+                    row.get("score", 0)
+                ),
+                "comments": safe_int(
+                    row.get("num_comments", 0)
+                ),
+            })
 
-        topic_sentiment = (
-            topic_df[
-                "sentiment"
-            ]
-            .value_counts(
-                normalize=True
-            )
-            * 100
-        ).round(1).to_dict()
-
-        evidence.append(
-            {
-                "topic_id": int(
-                    topic_id
+        evidence.append({
+            "topic_id": int(topic_id),
+            "post_count": int(
+                len(topic_df)
+            ),
+            "avg_score": round(
+                float(topic_df["score"].mean()),
+                2,
+            ),
+            "avg_comments": round(
+                float(
+                    topic_df["num_comments"].mean()
                 ),
-                "post_count": int(
-                    len(topic_df)
-                ),
-                "avg_score": round(
-                    float(
-                        topic_df[
-                            "score"
-                        ].mean()
-                    ),
-                    2,
-                ),
-                "avg_comments": round(
-                    float(
-                        topic_df[
-                            "num_comments"
-                        ].mean()
-                    ),
-                    2,
-                ),
-                "sentiment_breakdown":
-                    topic_sentiment,
-                "keywords":
-                    keywords.get(
-                        int(topic_id),
-                        [],
-                    ),
-                "representative_posts":
-                    posts,
-            }
-        )
+                2,
+            ),
+            "keywords": keywords.get(
+                int(topic_id),
+                [],
+            ),
+            "representative_posts": posts,
+        })
 
     return evidence
 
@@ -1402,31 +1032,21 @@ def create_topic_evidence(
 # GROQ / GPT-OSS
 # ============================================================
 
-def groq_extra_kwargs():
-
-    return {
-        "reasoning_effort": "low",
-        "include_reasoning": False,
-    }
-
-
 def analyze_topic_with_groq(
     topic_evidence,
     api_key,
 ):
 
-    topic_id = topic_evidence[
-        "topic_id"
-    ]
+    topic_id = topic_evidence["topic_id"]
 
     if not api_key:
 
         return {
             "topic_id": topic_id,
-            "error":
-                "GROQ_API_KEY is not configured.",
-            "name":
-                f"Topic {topic_id}",
+            "name": f"Topic {topic_id}",
+            "description": "",
+            "main_reaction": "",
+            "error": "GROQ_API_KEY is not configured.",
         }
 
     try:
@@ -1440,27 +1060,15 @@ def analyze_topic_with_groq(
         prompt = f"""
 You are an expert Reddit community analyst.
 
-Analyze Topic {topic_id} using ONLY the evidence supplied below.
+Analyze Topic {topic_id} using the evidence below.
 
-Give this topic a short, human-readable name, similar to a news
-headline or community discussion title.
+Return:
+1. A concise, meaningful topic name.
+2. A concise explanation of what users are discussing.
+3. The dominant reaction or attitude toward the topic.
 
-Then explain:
-1. What people are discussing.
-2. The dominant reaction.
-3. Why people appear to be reacting that way.
-4. Any important concerns.
-5. Whether there is meaningful disagreement.
-
-Rules:
-- Do not invent facts.
-- Do not claim the entire subreddit agrees.
-- The evidence is a sample.
-- Base the interpretation primarily on representative posts.
-- Keywords are supporting context only.
-- Do not calculate sentiment percentages yourself.
-- Mention disagreement only if the evidence supports it.
-- Keep the response concise and useful.
+Do not call it "Topic {topic_id}" unless there is genuinely no
+meaningful information available.
 
 Evidence:
 {json.dumps(topic_evidence, indent=2)}
@@ -1479,100 +1087,75 @@ Evidence:
             response_format={
                 "type": "json_schema",
                 "json_schema": {
-                    "name":
-                        "reddit_topic_analysis",
+                    "name": "reddit_topic_analysis",
                     "strict": True,
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "topic_id":
-                                {
-                                    "type":
-                                        "integer"
-                                },
-                            "name":
-                                {
-                                    "type":
-                                        "string"
-                                },
-                            "description":
-                                {
-                                    "type":
-                                        "string"
-                                },
-                            "main_reaction":
-                                {
-                                    "type":
-                                        "string"
-                                },
-                            "key_concerns":
-                                {
-                                    "type":
-                                        "array",
-                                    "items":
-                                        {
-                                            "type":
-                                                "string"
-                                        },
-                                },
-                            "disagreement":
-                                {
-                                    "type":
-                                        "string"
-                                },
+                            "topic_id": {
+                                "type": "integer"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "main_reaction": {
+                                "type": "string"
+                            },
                         },
                         "required": [
                             "topic_id",
                             "name",
                             "description",
                             "main_reaction",
-                            "key_concerns",
-                            "disagreement",
                         ],
-                        "additionalProperties":
-                            False,
+                        "additionalProperties": False,
                     },
                 },
             },
-            **groq_extra_kwargs(),
         )
 
-        return json.loads(
+        content = (
             response
             .choices[0]
             .message
             .content
         )
 
+        return json.loads(content)
+
     except Exception as exc:
 
         return {
             "topic_id": topic_id,
+            "name": f"Topic {topic_id}",
+            "description": "",
+            "main_reaction": "",
             "error": str(exc),
-            "name":
-                f"Topic {topic_id}",
         }
 
 
 def generate_ai_topic_insights(
     evidence,
+    workers=3,
 ):
+
+    api_key = get_groq_key()
 
     if not evidence:
         return []
-
-    api_key = get_groq_key()
 
     if not api_key:
 
         return [
             {
-                "topic_id":
-                    item["topic_id"],
-                "name":
-                    f"Topic {item['topic_id']}",
-                "error":
-                    "GROQ_API_KEY is not configured.",
+                "topic_id": item["topic_id"],
+                "name": f"Topic {item['topic_id']}",
+                "description": "",
+                "main_reaction": "",
+                "error": "GROQ_API_KEY is missing.",
             }
             for item in evidence
         ]
@@ -1581,7 +1164,7 @@ def generate_ai_topic_insights(
 
     with ThreadPoolExecutor(
         max_workers=min(
-            AI_WORKER_THREADS,
+            workers,
             len(evidence),
         )
     ) as executor:
@@ -1595,70 +1178,46 @@ def generate_ai_topic_insights(
             for item in evidence
         }
 
-        for future in as_completed(
-            futures
-        ):
+        for future in as_completed(futures):
 
             item = futures[future]
 
             try:
-
                 results.append(
                     future.result()
                 )
 
             except Exception as exc:
 
-                results.append(
-                    {
-                        "topic_id":
-                            item[
-                                "topic_id"
-                            ],
-                        "name":
-                            f"Topic {item['topic_id']}",
-                        "error":
-                            str(exc),
-                    }
-                )
+                results.append({
+                    "topic_id": item["topic_id"],
+                    "name": (
+                        f"Topic {item['topic_id']}"
+                    ),
+                    "description": "",
+                    "main_reaction": "",
+                    "error": str(exc),
+                })
 
     return sorted(
         results,
-        key=lambda x:
-            x.get(
-                "topic_id",
-                999,
-            ),
+        key=lambda x: x.get(
+            "topic_id",
+            999,
+        ),
     )
 
 
-# ============================================================
-# OVERALL REVIEW
-# ============================================================
-
 def generate_overall_review(
-    subreddit,
-    sentiment_df,
-    topic_summaries,
+    evidence,
 ):
 
     api_key = get_groq_key()
 
-    fallback = {
-        "consensus":
-            "AI review is unavailable.",
-        "overall_sentiment":
-            "See the sentiment distribution for the statistical breakdown.",
-        "notable_details": [],
-    }
-
     if not api_key:
-
-        fallback["error"] = (
+        return (
             "GROQ_API_KEY is not configured."
         )
-
-        return fallback
 
     try:
 
@@ -1668,37 +1227,15 @@ def generate_overall_review(
             api_key=api_key
         )
 
-        evidence = {
-            "subreddit":
-                subreddit,
-            "sentiment_breakdown":
-                sentiment_df.to_dict(
-                    orient="records"
-                ),
-            "topics":
-                topic_summaries,
-        }
-
         prompt = f"""
-You are summarizing a Reddit community analysis.
+Analyze this Reddit subreddit sample.
 
-The analysis is based on a sample of recent high-engagement posts.
+Provide a concise 2–3 paragraph intelligence summary covering:
 
-Use ONLY the evidence below.
-
-Write:
-1. consensus — 3-5 sentences describing the apparent consensus,
-   mood, or dominant discussion patterns.
-2. overall_sentiment — 1-2 sentences describing the overall sentiment
-   and its likely drivers.
-3. notable_details — 3-6 concise bullet-style observations about
-   interesting, niche, surprising, or disputed topics.
-
-Rules:
-- Do not claim this represents the entire subreddit.
-- Explicitly treat it as a sample.
-- Do not invent facts.
-- Do not infer details that are not supported by the evidence.
+- Overall community consensus
+- Major sentiment drivers
+- The most important recurring discussions
+- Any unusual or niche observations
 
 Evidence:
 {json.dumps(evidence, indent=2)}
@@ -1712,52 +1249,11 @@ Evidence:
                     "content": prompt,
                 }
             ],
-            temperature=0.2,
-            max_completion_tokens=700,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name":
-                        "reddit_overall_summary",
-                    "strict": True,
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "consensus":
-                                {
-                                    "type":
-                                        "string"
-                                },
-                            "overall_sentiment":
-                                {
-                                    "type":
-                                        "string"
-                                },
-                            "notable_details":
-                                {
-                                    "type":
-                                        "array",
-                                    "items":
-                                        {
-                                            "type":
-                                                "string"
-                                        },
-                                },
-                        },
-                        "required": [
-                            "consensus",
-                            "overall_sentiment",
-                            "notable_details",
-                        ],
-                        "additionalProperties":
-                            False,
-                    },
-                },
-            },
-            **groq_extra_kwargs(),
+            temperature=0.3,
+            max_completion_tokens=800,
         )
 
-        return json.loads(
+        return (
             response
             .choices[0]
             .message
@@ -1766,77 +1262,13 @@ Evidence:
 
     except Exception as exc:
 
-        fallback["error"] = str(exc)
-
-        return fallback
+        return f"Error generating review: {exc}"
 
 
 # ============================================================
-# WORD CLOUD
+# NLP PIPELINE
 # ============================================================
 
-def generate_word_cloud(df):
-
-    if df.empty:
-        return None
-
-    text = " ".join(
-        df["title"]
-        .fillna("")
-        .astype(str)
-        + " "
-        + df["selftext"]
-        .fillna("")
-        .astype(str)
-    )
-
-    stopwords = (
-        set(ENGLISH_STOP_WORDS)
-        | CUSTOM_STOPWORDS
-    )
-
-    if not text.strip():
-        return None
-
-    wordcloud = WordCloud(
-        width=1000,
-        height=420,
-        background_color="white",
-        stopwords=stopwords,
-        collocations=False,
-        max_words=120,
-        color_func=lambda *args, **kwargs:
-            REDDIT_ORANGE
-            if np.random.rand() > 0.5
-            else REDDIT_DARK,
-    ).generate(text)
-
-    fig, ax = plt.subplots(
-        figsize=(10, 4.2)
-    )
-
-    ax.imshow(
-        wordcloud,
-        interpolation="bilinear",
-    )
-
-    ax.axis("off")
-
-    fig.tight_layout(
-        pad=0
-    )
-
-    return fig
-
-
-# ============================================================
-# FULL NLP PIPELINE
-# ============================================================
-
-@st.cache_data(
-    ttl=900,
-    show_spinner=False,
-)
 def run_nlp_pipeline(
     raw_df,
     top_posts,
@@ -1848,12 +1280,10 @@ def run_nlp_pipeline(
         "best_k": None,
         "keywords": {},
         "evidence": [],
-        "top_engaged":
-            pd.DataFrame(),
-        "sentiment":
-            pd.DataFrame(),
+        "top_engaged": pd.DataFrame(),
+        "sentiment": pd.DataFrame(),
         "ai_insights": [],
-        "overall_review": {},
+        "overall_review": "",
     }
 
     if raw_df.empty:
@@ -1875,15 +1305,14 @@ def run_nlp_pipeline(
         return empty
 
     analysis_df = analyze_sentiment(
-        analysis_df
+        analysis_df,
+        DEFAULT_BATCH_SIZE,
     )
 
-    (
-        analysis_df,
-        silhouette_df,
-        best_k,
-    ) = discover_topics(
-        analysis_df
+    analysis_df, _, best_k = (
+        discover_topics(
+            analysis_df
+        )
     )
 
     keywords = extract_topic_keywords(
@@ -1899,357 +1328,156 @@ def run_nlp_pipeline(
         keywords,
     )
 
+    top_engaged = get_top_engaged_posts(
+        analysis_df
+    )
+
     sentiment = sentiment_summary(
         analysis_df
     )
 
-    ai_insights = (
-        generate_ai_topic_insights(
-            evidence
-        )
+    # GPT-OSS analysis
+    ai_insights = generate_ai_topic_insights(
+        evidence,
+        DEFAULT_WORKERS,
     )
 
-    # --------------------------------------------------------
-    # Topic names
-    # --------------------------------------------------------
-
-    topic_names = {}
-
-    for item in ai_insights:
-
-        tid = item.get(
-            "topic_id"
-        )
-
-        if (
-            "error" not in item
-            and item.get("name")
-        ):
-
-            topic_names[tid] = (
-                item["name"]
-            )
-
-    for item in evidence:
-
-        tid = item[
-            "topic_id"
-        ]
-
-        if tid not in topic_names:
-
-            topic_names[tid] = (
-                fallback_topic_name(
-                    item.get(
-                        "keywords",
-                        [],
-                    )
-                )
-            )
-
-    analysis_df[
-        "topic_name"
-    ] = (
-        analysis_df[
-            "topic_id"
-        ].map(topic_names)
-    )
-
-    top_engaged = (
-        get_top_engaged_posts(
-            analysis_df
-        )
-    )
-
-    # --------------------------------------------------------
-    # Overall review evidence
-    # --------------------------------------------------------
-
-    topic_summaries = []
-
-    for item in evidence:
-
-        tid = item[
-            "topic_id"
-        ]
-
-        topic_summaries.append(
-            {
-                "topic_id": tid,
-                "name":
-                    topic_names.get(
-                        tid,
-                        f"Topic {tid}",
-                    ),
-                "post_count":
-                    item["post_count"],
-                "avg_score":
-                    item["avg_score"],
-                "avg_comments":
-                    item["avg_comments"],
-                "sentiment_breakdown":
-                    item[
-                        "sentiment_breakdown"
-                    ],
-                "keywords":
-                    item["keywords"],
-            }
-        )
-
-    subreddit = ""
-
-    if (
-        not raw_df.empty
-        and "subreddit"
-        in raw_df.columns
-    ):
-
-        subreddit = str(
-            raw_df[
-                "subreddit"
-            ].iloc[0]
-        )
-
-    overall_review = (
-        generate_overall_review(
-            subreddit,
-            sentiment,
-            topic_summaries,
-        )
+    overall_review = generate_overall_review(
+        evidence,
     )
 
     return {
-        "clean":
-            clean_df,
-        "analysis":
-            analysis_df,
-        "best_k":
-            best_k,
-        "keywords":
-            keywords,
-        "evidence":
-            evidence,
-        "top_engaged":
-            top_engaged,
-        "sentiment":
-            sentiment,
-        "ai_insights":
-            {
-                i.get("topic_id"):
-                    i
-                for i in ai_insights
-            },
-        "topic_names":
-            topic_names,
-        "overall_review":
-            overall_review,
-        "silhouette":
-            silhouette_df,
+        "clean": clean_df,
+        "analysis": analysis_df,
+        "best_k": best_k,
+        "keywords": keywords,
+        "evidence": evidence,
+        "top_engaged": top_engaged,
+        "sentiment": sentiment,
+        "ai_insights": ai_insights,
+        "overall_review": overall_review,
     }
+
+
+# ============================================================
+# WORD CLOUD
+# ============================================================
+
+def generate_word_cloud(df):
+
+    if df.empty:
+        return None
+
+    text = " ".join(
+        df["title"].fillna("")
+        + " "
+        + df["selftext"].fillna("")
+    )
+
+    stopwords = set(
+        ENGLISH_STOP_WORDS
+    )
+
+    stopwords.update({
+        "reddit",
+        "post",
+        "posts",
+        "people",
+        "just",
+        "like",
+        "think",
+        "thing",
+        "really",
+    })
+
+    wordcloud = WordCloud(
+        width=800,
+        height=400,
+        background_color="#111111",
+        stopwords=stopwords,
+        color_func=lambda *args, **kwargs: "white",
+    ).generate(text)
+
+    fig, ax = plt.subplots(
+        figsize=(10, 5)
+    )
+
+    fig.patch.set_facecolor("#111111")
+    ax.set_facecolor("#111111")
+
+    ax.imshow(
+        wordcloud,
+        interpolation="bilinear",
+    )
+
+    ax.axis("off")
+
+    return fig
 
 
 # ============================================================
 # SIDEBAR
 # ============================================================
 
-with st.sidebar:
-
-    st.markdown(
-        f"""
-        <div style="
-            display:flex;
-            align-items:center;
-            gap:.55rem;
-            margin-bottom:.8rem;
-        ">
-            <img
-                src="{REDDIT_ICON_URL}"
-                style="
-                    width:34px;
-                    height:34px;
-                    border-radius:50%;
-                    background:white;
-                    padding:3px;
-                "
-            >
-            <div>
-                <div style="
-                    font-size:1.2rem;
-                    font-weight:750;
-                    color:white;
-                ">
-                    Reddit Recon
-                </div>
-                <div style="
-                    font-size:.72rem;
-                    color:#878A8C;
-                ">
-                    Community intelligence
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    with st.form(
-        "subreddit_form"
-    ):
-
-        subreddit_input = st.text_input(
-            "Subreddit",
-            placeholder=(
-                "GTA6, gaming, technology, stocks..."
-            ),
-            help=(
-                "Enter a subreddit name. "
-                "You can include or omit r/."
-            ),
-        )
-
-        days_back = st.slider(
-            "Days to analyze",
-            1,
-            30,
-            DEFAULT_DAYS_BACK,
-        )
-
-        posts_to_fetch = st.slider(
-            "Posts to fetch",
-            100,
-            1000,
-            DEFAULT_POSTS_TO_FETCH,
-            50,
-        )
-
-        top_posts = st.slider(
-            "Top posts for NLP",
-            10,
-            500,
-            DEFAULT_TOP_POSTS,
-            10,
-        )
-
-        submitted = st.form_submit_button(
-            "🚀 Run Recon",
-            type="primary",
-            use_container_width=True,
-        )
-
-    st.divider()
-
-    st.markdown(
-        """
-        <div style="
-            font-size:.72rem;
-            color:#878A8C;
-            text-transform:uppercase;
-            font-weight:700;
-            letter-spacing:.05em;
-            margin-bottom:.35rem;
-        ">
-            AI Engine
-        </div>
-        <div style="
-            background:#272729;
-            border:1px solid #343536;
-            border-radius:7px;
-            padding:.65rem .75rem;
-            margin-bottom:.7rem;
-        ">
-            <div style="
-                color:white;
-                font-size:.85rem;
-                font-weight:650;
-            ">
-                GPT-OSS 20B
-            </div>
-            <div style="
-                color:#878A8C;
-                font-size:.7rem;
-                margin-top:.15rem;
-            ">
-                Automatic topic interpretation
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    with st.expander(
-        "ℹ️ About & Pipeline"
-    ):
-
-        st.markdown(
-            f"""
-            **Current Analysis**
-
-            - **Data source:** Arctic Shift Reddit API
-            - **Sentiment:** `{SENTIMENT_MODEL}`
-            - **Embeddings:** `{EMBEDDING_MODEL}`
-            - **Clustering:** K-Means
-            - **Topic selection:** Silhouette score
-            - **Keywords:** TF-IDF
-            - **AI:** `{LLM_MODEL}` via Groq
-            - **AI workers:** {AI_WORKER_THREADS}
-            - **Sentiment batch:** {SENTIMENT_BATCH_SIZE}
-
-            **Pipeline**
-
-            Reddit posts → cleaning → engagement selection →
-            sentiment → semantic embeddings → K-Means topics →
-            TF-IDF keywords → GPT-OSS topic analysis →
-            subreddit review.
-            """
-        )
-
-
-# ============================================================
-# HERO
-# ============================================================
-
-st.markdown(
-    f"""
-    <div class="hero">
-        <img src="{REDDIT_ICON_URL}">
-        <div>
-            <h1>Reddit Recon</h1>
-            <p>
-                Sentiment, semantic topics, engagement and
-                AI-powered community intelligence.
-            </p>
-        </div>
+st.sidebar.markdown(
+    """
+    <div style="
+        font-size: 46px;
+        text-align: center;
+        margin: 10px 0 20px 0;
+    ">
+        <i class="fa-brands fa-reddit"></i>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
+st.sidebar.title("Recon Settings")
 
-# ============================================================
-# INITIAL STATE
-# ============================================================
 
-if "selected_subreddit" not in st.session_state:
+with st.sidebar.form(
+    "subreddit_form",
+    clear_on_submit=False,
+):
 
-    st.markdown(
-        """
-        <div class="empty-state">
-            <div class="empty-state-icon">🔎</div>
-            <h3>Ready for reconnaissance</h3>
-            <p>
-                Enter a public subreddit in the sidebar,
-                configure the analysis window, and run Recon.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    subreddit_input = st.text_input(
+        "Subreddit",
+        placeholder="e.g. technology, Python, gaming",
+        help="Enter a subreddit without r/",
     )
 
-    st.stop()
+    days_back = st.slider(
+        "Days to analyze",
+        1,
+        30,
+        1,
+    )
+
+    posts_to_fetch = st.slider(
+        "Posts to fetch",
+        100,
+        1000,
+        300,
+        50,
+    )
+
+    top_posts = st.slider(
+        "Top posts for NLP",
+        10,
+        500,
+        100,
+        10,
+    )
+
+    submitted = st.form_submit_button(
+        "Run Recon",
+        type="primary",
+        use_container_width=True,
+    )
 
 
 # ============================================================
-# SUBREDDIT SUBMISSION
+# RUN RECON
 # ============================================================
 
 if submitted:
@@ -2258,195 +1486,248 @@ if submitted:
         subreddit_input
     )
 
-    if not subreddit:
+    if (
+        not subreddit
+        or not subreddit.replace(
+            "_",
+            "",
+        ).isalnum()
+    ):
 
         st.sidebar.error(
-            "Enter a subreddit name."
+            "Use a valid subreddit name."
         )
 
-        st.stop()
+    else:
 
-    if not subreddit.replace(
-        "_",
-        "",
-    ).isalnum():
-
-        st.sidebar.error(
-            "Use a valid subreddit name, "
-            "e.g. GTA6 or r/GTA6."
+        # Clear old result first
+        st.session_state.pop(
+            "result",
+            None,
         )
 
-        st.stop()
+        st.session_state[
+            "selected_subreddit"
+        ] = subreddit
 
-    st.session_state[
-        "selected_subreddit"
-    ] = subreddit
+        progress = st.progress(0)
+
+        status = st.empty()
+
+        try:
+
+            status.write(
+                f"Fetching posts from r/{subreddit}..."
+            )
+
+            raw_df = fetch_reddit_posts(
+                subreddit,
+                posts_to_fetch,
+                days_back,
+            )
+
+            progress.progress(35)
+
+            if raw_df.empty:
+
+                status.empty()
+                progress.empty()
+
+                st.error(
+                    f"No posts were fetched from r/{subreddit}. "
+                    "Check the subreddit name or try a longer date range."
+                )
+
+                st.stop()
+
+            status.write(
+                f"Fetched {len(raw_df):,} posts. "
+                "Running sentiment and topic analysis..."
+            )
+
+            result = run_nlp_pipeline(
+                raw_df,
+                top_posts,
+            )
+
+            progress.progress(85)
+
+            if (
+                not isinstance(result, dict)
+                or "analysis" not in result
+            ):
+
+                raise RuntimeError(
+                    "NLP pipeline returned an invalid result."
+                )
+
+            result["raw"] = raw_df
+
+            # IMPORTANT:
+            # Store the complete result in one place.
+            st.session_state[
+                "result"
+            ] = result
+
+            progress.progress(100)
+
+            status.empty()
+            progress.empty()
+
+            st.success(
+                f"Recon complete for r/{subreddit}."
+            )
+
+        except Exception as exc:
+
+            status.empty()
+            progress.empty()
+
+            st.error(
+                "Recon failed."
+            )
+
+            st.exception(exc)
+
+
+# ============================================================
+# NO RESULT YET
+# ============================================================
+
+if "result" not in st.session_state:
+
+    st.markdown(
+        """
+        <div class="reddit-header">
+            <div class="reddit-icon">
+                <i class="fa-brands fa-reddit"></i>
+            </div>
+
+            <div>
+                <h1>Reddit Recon</h1>
+
+                <p>
+                    Community intelligence, semantic topics,
+                    sentiment and engagement analysis.
+                </p>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.write(
+        "Enter a subreddit in the sidebar and click **Run Recon**."
+    )
+
+    st.stop()
+
+
+# ============================================================
+# SAFELY LOAD RESULT
+# ============================================================
+
+result = st.session_state.get(
+    "result"
+)
+
+if not isinstance(result, dict):
+
+    st.error(
+        "Invalid analysis result."
+    )
 
     st.session_state.pop(
         "result",
         None,
     )
 
-    progress = st.progress(
-        0
-    )
-
-    status = st.empty()
-
-    status.write(
-        f"Fetching recent posts from "
-        f"r/{subreddit}..."
-    )
-
-    raw_df = fetch_reddit_posts(
-        subreddit=subreddit,
-        posts_to_fetch=posts_to_fetch,
-        days_back=days_back,
-    )
-
-    progress.progress(
-        0.3
-    )
-
-    if raw_df.empty:
-
-        progress.empty()
-        status.empty()
-
-        st.error(
-            "No posts were fetched. "
-            "Check the subreddit name or try again later."
-        )
-
-        st.stop()
-
-    status.write(
-        f"Fetched {len(raw_df):,} posts. "
-        "Running NLP + GPT-OSS analysis..."
-    )
-
-    result = run_nlp_pipeline(
-        raw_df=raw_df,
-        top_posts=top_posts,
-    )
-
-    progress.progress(
-        1.0
-    )
-
-    progress.empty()
-    status.empty()
-
-    result["raw"] = raw_df
-
-    result["config"] = {
-        "days_back":
-            days_back,
-        "posts_to_fetch":
-            posts_to_fetch,
-        "top_posts":
-            top_posts,
-        "sentiment_model":
-            SENTIMENT_MODEL,
-        "embedding_model":
-            EMBEDDING_MODEL,
-        "llm_model":
-            LLM_MODEL,
-    }
-
-    st.session_state[
-        "result"
-    ] = result
-
-    st.toast(
-        f"Recon complete for r/{subreddit}!"
-    )
-
-
-# ============================================================
-# RESULT STATE
-# ============================================================
-
-if "result" not in st.session_state:
-
-    st.info(
-        "Enter a subreddit in the sidebar and "
-        "click **Run Recon** to get started."
-    )
-
     st.stop()
 
 
-result = st.session_state[
-    "result"
-]
+raw_df = result.get(
+    "raw",
+    pd.DataFrame(),
+)
 
-SUBREDDIT = st.session_state[
-    "selected_subreddit"
-]
+analysis_df = result.get(
+    "analysis",
+    pd.DataFrame(),
+)
 
-raw_df = result[
-    "raw"
-]
-
-analysis_df = result[
-    "analysis"
-]
-
-best_k = result[
+best_k = result.get(
     "best_k"
-]
+)
 
-keywords = result[
-    "keywords"
-]
-
-top_engaged = result[
-    "top_engaged"
-]
-
-sentiment = result[
-    "sentiment"
-]
-
-ai_insights = result[
-    "ai_insights"
-]
-
-topic_names = result.get(
-    "topic_names",
+keywords = result.get(
+    "keywords",
     {},
 )
 
-overall_review = result[
-    "overall_review"
-]
+top_engaged = result.get(
+    "top_engaged",
+    pd.DataFrame(),
+)
 
-cfg = result[
-    "config"
-]
+sentiment = result.get(
+    "sentiment",
+    pd.DataFrame(),
+)
+
+ai_insights = result.get(
+    "ai_insights",
+    [],
+)
+
+overall_review = result.get(
+    "overall_review",
+    "",
+)
+
 
 if analysis_df.empty:
 
     st.error(
-        "No usable posts were available "
-        "for NLP analysis."
+        "No usable posts were available for NLP analysis."
     )
 
     st.stop()
 
 
+SUBREDDIT = st.session_state.get(
+    "selected_subreddit",
+    subreddit_input,
+)
+
+
 # ============================================================
-# CONTEXT BAR
+# MAIN HEADER
 # ============================================================
 
-st.caption(
-    f"Analyzing **r/{SUBREDDIT}** · "
-    f"last {cfg['days_back']} day"
-    f"{'s' if cfg['days_back'] != 1 else ''} · "
-    f"{len(raw_df):,} fetched · "
-    f"{len(analysis_df):,} analyzed · "
-    f"GPT-OSS 20B"
+st.markdown(
+    f"""
+    <div class="reddit-header">
+
+        <div class="reddit-icon">
+            <i class="fa-brands fa-reddit"></i>
+        </div>
+
+        <div>
+
+            <h1>
+                Reddit Recon: r/{html.escape(SUBREDDIT)}
+            </h1>
+
+            <p>
+                Analyzed top {len(analysis_df):,} posts
+                from the last {days_back} day(s).
+            </p>
+
+        </div>
+
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 
@@ -2454,14 +1735,12 @@ st.caption(
 # TABS
 # ============================================================
 
-tab1, tab2, tab3, tab4 = st.tabs(
-    [
-        "📊 Overview",
-        "🧠 Topics",
-        "📝 Review",
-        "📁 Data",
-    ]
-)
+tab1, tab2, tab3, tab4 = st.tabs([
+    "Overview",
+    "Topics",
+    "Review",
+    "Data",
+])
 
 
 # ============================================================
@@ -2470,171 +1749,102 @@ tab1, tab2, tab3, tab4 = st.tabs(
 
 with tab1:
 
-    st.subheader(
-        "Executive Summary"
-    )
+    col1, col2, col3, col4 = st.columns(4)
 
-    positive_pct = 0.0
-
-    if not sentiment.empty:
-
-        positive_pct = float(
-            sentiment.loc[
-                sentiment["sentiment"]
-                == "positive",
-                "percentage",
-            ].sum()
-        )
-
-    avg_score = (
-        analysis_df["score"]
-        .mean()
-    )
-
-    avg_comments = (
-        analysis_df[
-            "num_comments"
-        ].mean()
-    )
-
-    col1, col2, col3, col4, col5 = (
-        st.columns(5)
-    )
-
-    metrics = [
-        (
-            "Posts fetched",
-            f"{len(raw_df):,}",
-        ),
-        (
-            "Posts analyzed",
-            f"{len(analysis_df):,}",
-        ),
-        (
-            "Topics discovered",
-            str(
-                best_k
-                if best_k
-                else "N/A"
-            ),
-        ),
-        (
-            "Positive sentiment",
-            f"{positive_pct:.1f}%",
-        ),
-        (
-            "Avg. score",
-            format_number(
-                avg_score
-            ),
-        ),
-    ]
-
-    for col, (
-        label,
-        value,
-    ) in zip(
-        [
-            col1,
-            col2,
-            col3,
-            col4,
-            col5,
-        ],
-        metrics,
-    ):
-
-        with col:
-
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                    <div class="metric-label">
-                        {html.escape(label)}
-                    </div>
-                    <div class="metric-value">
-                        {html.escape(value)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-    st.write("")
-
-    # --------------------------------------------------------
-    # SENTIMENT / TOPIC VOLUME
-    # --------------------------------------------------------
-
-    chart_col1, chart_col2 = (
-        st.columns(2)
-    )
-
-    with chart_col1:
+    with col1:
 
         st.markdown(
-            '<div class="chart-card">',
+            f"""
+            <div class="reddit-card">
+                <h4>Total Fetched</h4>
+                <h2>{len(raw_df):,}</h2>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 
+    with col2:
+
         st.markdown(
-            "**Sentiment distribution**"
+            f"""
+            <div class="reddit-card">
+                <h4>NLP Analyzed</h4>
+                <h2>{len(analysis_df):,}</h2>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with col3:
+
+        st.markdown(
+            f"""
+            <div class="reddit-card">
+                <h4>Topics Discovered</h4>
+                <h2>{best_k if best_k else "N/A"}</h2>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with col4:
+
+        pos_pct = 0
+
+        if not sentiment.empty:
+
+            pos_pct = sentiment.loc[
+                sentiment["sentiment"] == "positive",
+                "percentage",
+            ].sum()
+
+        st.markdown(
+            f"""
+            <div class="reddit-card">
+                <h4>Positivity</h4>
+                <h2>{pos_pct:.1f}%</h2>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+
+        st.markdown(
+            '<div class="reddit-card">',
+            unsafe_allow_html=True,
+        )
+
+        st.subheader(
+            "Sentiment Distribution"
         )
 
         if not sentiment.empty:
 
-            sentiment_plot = (
-                sentiment
-                .sort_values(
-                    "percentage",
-                    ascending=False,
-                )
-            )
-
-            fig = px.bar(
-                sentiment_plot,
-                x="sentiment",
-                y="percentage",
-                color="sentiment",
-                color_discrete_map=
-                    SENTIMENT_COLORS,
-                text=(
-                    sentiment_plot[
-                        "percentage"
-                    ]
-                    .round(1)
-                    .astype(str)
-                    + "%"
-                ),
-                labels={
-                    "sentiment":
-                        "Sentiment",
-                    "percentage":
-                        "Percentage",
-                },
-            )
-
-            fig.update_traces(
-                textposition="outside"
+            fig = px.pie(
+                sentiment,
+                values="percentage",
+                names="sentiment",
+                hole=0.4,
             )
 
             fig.update_layout(
-                showlegend=False,
                 margin=dict(
-                    t=10,
-                    r=10,
-                    b=10,
-                    l=10,
+                    t=0,
+                    b=0,
+                    l=0,
+                    r=0,
                 ),
-                height=350,
+                paper_bgcolor="#111111",
+                plot_bgcolor="#111111",
+                font=dict(color="white"),
             )
 
             st.plotly_chart(
                 fig,
                 use_container_width=True,
-                config={
-                    "displayModeBar": False
-                },
             )
 
         st.markdown(
@@ -2642,408 +1852,74 @@ with tab1:
             unsafe_allow_html=True,
         )
 
-    with chart_col2:
+    with c2:
 
         st.markdown(
-            '<div class="chart-card">',
+            '<div class="reddit-card">',
             unsafe_allow_html=True,
         )
 
-        st.markdown(
-            "**Posts by topic**"
-        )
-
-        topic_counts = (
-            analysis_df
-            .groupby(
-                [
-                    "topic_id",
-                    "topic_name",
-                ]
-            )
-            .size()
-            .reset_index(
-                name="posts"
-            )
-            .sort_values(
-                "posts",
-                ascending=True,
-            )
-        )
-
-        fig_topic = px.bar(
-            topic_counts,
-            x="posts",
-            y="topic_name",
-            orientation="h",
-            text="posts",
-            color_discrete_sequence=[
-                REDDIT_ORANGE
-            ],
-            labels={
-                "posts":
-                    "Posts",
-                "topic_name":
-                    "Topic",
-            },
-        )
-
-        fig_topic.update_traces(
-            textposition="outside"
-        )
-
-        fig_topic.update_layout(
-            margin=dict(
-                t=10,
-                r=10,
-                b=10,
-                l=10,
-            ),
-            height=350,
-        )
-
-        st.plotly_chart(
-            fig_topic,
-            use_container_width=True,
-            config={
-                "displayModeBar": False
-            },
-        )
-
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True,
-        )
-
-    # --------------------------------------------------------
-    # ENGAGEMENT / VOLUME
-    # --------------------------------------------------------
-
-    chart_col3, chart_col4 = (
-        st.columns(2)
-    )
-
-    with chart_col3:
-
-        st.markdown(
-            '<div class="chart-card">',
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(
-            "**Topic engagement**"
+        st.subheader(
+            "Topic Engagement"
         )
 
         topic_eng = (
             analysis_df
-            .groupby(
-                [
-                    "topic_id",
-                    "topic_name",
-                ]
-            )
+            .groupby("topic_id")
             .agg(
-                posts=(
-                    "id",
-                    "count",
-                ),
-                avg_score=(
-                    "score",
-                    "mean",
-                ),
-                avg_comments=(
-                    "num_comments",
-                    "mean",
-                ),
+                posts=("id", "count"),
+                avg_score=("score", "mean"),
             )
             .reset_index()
         )
 
-        fig_eng = px.scatter(
+        topic_names_map = {
+            item.get("topic_id"): item.get(
+                "name",
+                f"Topic {item.get('topic_id')}",
+            )
+            for item in ai_insights
+        }
+
+        topic_eng["Topic Name"] = (
+            topic_eng["topic_id"]
+            .map(topic_names_map)
+        )
+
+        fig4 = px.scatter(
             topic_eng,
             x="avg_score",
-            y="avg_comments",
+            y="posts",
             size="posts",
-            color="topic_name",
-            hover_data=[
-                "posts",
-                "avg_score",
-                "avg_comments",
-            ],
+            hover_name="Topic Name",
             labels={
-                "avg_score":
-                    "Average score",
-                "avg_comments":
-                    "Average comments",
-                "topic_name":
-                    "Topic",
+                "avg_score": "Average Score",
+                "posts": "Volume of Posts",
             },
         )
 
-        fig_eng.update_layout(
-            height=360,
+        fig4.update_layout(
             margin=dict(
-                t=10,
-                r=10,
-                b=10,
-                l=10,
+                t=0,
+                b=0,
+                l=0,
+                r=0,
             ),
+            paper_bgcolor="#111111",
+            plot_bgcolor="#111111",
+            font=dict(color="white"),
             showlegend=False,
         )
 
         st.plotly_chart(
-            fig_eng,
+            fig4,
             use_container_width=True,
-            config={
-                "displayModeBar": False
-            },
         )
 
         st.markdown(
             "</div>",
             unsafe_allow_html=True,
         )
-
-    with chart_col4:
-
-        st.markdown(
-            '<div class="chart-card">',
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(
-            "**Post volume over time**"
-        )
-
-        volume_df = raw_df.copy()
-
-        volume_df["date"] = (
-            pd.to_datetime(
-                volume_df[
-                    "created_utc"
-                ],
-                unit="s",
-            ).dt.date
-        )
-
-        daily = (
-            volume_df
-            .groupby("date")
-            .size()
-            .reset_index(
-                name="posts"
-            )
-        )
-
-        fig_vol = px.line(
-            daily,
-            x="date",
-            y="posts",
-            markers=True,
-            color_discrete_sequence=[
-                REDDIT_ORANGE
-            ],
-            labels={
-                "date":
-                    "Date",
-                "posts":
-                    "Posts fetched",
-            },
-        )
-
-        fig_vol.update_layout(
-            height=360,
-            margin=dict(
-                t=10,
-                r=10,
-                b=10,
-                l=10,
-            ),
-        )
-
-        st.plotly_chart(
-            fig_vol,
-            use_container_width=True,
-            config={
-                "displayModeBar": False
-            },
-        )
-
-        st.markdown(
-            "</div>",
-            unsafe_allow_html=True,
-        )
-
-    # --------------------------------------------------------
-    # TOP TOPICS
-    # --------------------------------------------------------
-
-    st.divider()
-
-    st.markdown(
-        "**Top topics at a glance**"
-    )
-
-    top_topics = (
-        analysis_df
-        .groupby(
-            [
-                "topic_id",
-                "topic_name",
-            ]
-        )
-        .agg(
-            posts=(
-                "id",
-                "count",
-            ),
-            avg_score=(
-                "score",
-                "mean",
-            ),
-        )
-        .reset_index()
-        .sort_values(
-            "posts",
-            ascending=False,
-        )
-        .head(3)
-    )
-
-    if not top_topics.empty:
-
-        preview_cols = st.columns(
-            len(top_topics)
-        )
-
-        for col, (
-            _,
-            row,
-        ) in zip(
-            preview_cols,
-            top_topics.iterrows(),
-        ):
-
-            tid = int(
-                row["topic_id"]
-            )
-
-            chips = "".join(
-                f"""
-                <span class="keyword-chip">
-                    {html.escape(str(kw))}
-                </span>
-                """
-                for kw in keywords.get(
-                    tid,
-                    [],
-                )[:5]
-            )
-
-            with col:
-
-                st.markdown(
-                    f"""
-                    <div class="reddit-card">
-                        <div style="
-                            font-weight:700;
-                            font-size:1rem;
-                            color:{REDDIT_DARK};
-                        ">
-                            {html.escape(
-                                str(
-                                    row[
-                                        "topic_name"
-                                    ]
-                                )
-                            )}
-                        </div>
-
-                        <div style="
-                            color:#787C7E;
-                            font-size:.8rem;
-                            margin-top:.25rem;
-                        ">
-                            {int(row["posts"]):,} posts
-                            · avg score
-                            {row["avg_score"]:,.0f}
-                        </div>
-
-                        <div style="
-                            margin-top:.55rem;
-                        ">
-                            {chips}
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-    # --------------------------------------------------------
-    # TOP ENGAGED POSTS
-    # --------------------------------------------------------
-
-    st.divider()
-
-    st.markdown(
-        "**Highest-engagement posts**"
-    )
-
-    if not top_engaged.empty:
-
-        for _, row in (
-            top_engaged.head(5)
-            .iterrows()
-        ):
-
-            title = html.escape(
-                str(
-                    row.get(
-                        "title",
-                        "Untitled",
-                    )
-                )
-            )
-
-            url = html.escape(
-                str(
-                    row.get(
-                        "url",
-                        "",
-                    )
-                ),
-                quote=True,
-            )
-
-            topic = html.escape(
-                str(
-                    row.get(
-                        "topic_name",
-                        "Unknown",
-                    )
-                )
-            )
-
-            st.markdown(
-                f"""
-                <div class="reddit-card">
-                    <a
-                        class="post-title"
-                        href="{url}"
-                        target="_blank"
-                    >
-                        {title}
-                    </a>
-
-                    <div class="post-meta">
-                        ↑ {safe_int(row.get("score", 0)):,}
-                        · 💬 {safe_int(row.get("num_comments", 0)):,}
-                        · Topic: {topic}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
 
 
 # ============================================================
@@ -3052,64 +1928,43 @@ with tab1:
 
 with tab2:
 
-    st.subheader(
-        "Semantic Topics"
-    )
-
-    st.caption(
-        "Topics are discovered using MiniLM embeddings + K-Means. "
-        "GPT-OSS 20B automatically names and interprets each cluster."
-    )
-
-    if not get_groq_key():
+    if not ai_insights:
 
         st.warning(
-            "GROQ_API_KEY is not configured. "
-            "Keyword-based topic names are being shown."
+            "No AI insights were generated."
         )
 
-    for topic_id in sorted(
-        analysis_df[
+    for item in ai_insights:
+
+        topic_id = item.get(
             "topic_id"
-        ].unique()
-    ):
-
-        topic_id = int(
-            topic_id
         )
 
-        topic_df = (
-            analysis_df[
-                analysis_df[
-                    "topic_id"
-                ]
-                == topic_id
-            ]
-            .copy()
+        ai_name = item.get(
+            "name",
+            f"Topic {topic_id}",
         )
 
-        name = topic_names.get(
-            topic_id,
-            fallback_topic_name(
-                keywords.get(
-                    topic_id,
-                    [],
-                )
-            ),
+        ai_desc = item.get(
+            "description",
+            "",
         )
 
-        insight = ai_insights.get(
-            topic_id,
-            {},
+        ai_reaction = item.get(
+            "main_reaction",
+            "",
         )
+
+        topic_df = analysis_df[
+            analysis_df["topic_id"] == topic_id
+        ].copy()
+
+        if topic_df.empty:
+            continue
 
         topic_sentiment = (
-            topic_df[
-                "sentiment"
-            ]
-            .value_counts(
-                normalize=True
-            )
+            topic_df["sentiment"]
+            .value_counts(normalize=True)
             * 100
         )
 
@@ -3120,212 +1975,112 @@ with tab2:
             )
             for label, pct
             in topic_sentiment
-                .sort_values(
-                    ascending=False
-                )
-                .items()
-        )
-
-        chips = "".join(
-            f"""
-            <span class="keyword-chip">
-                {html.escape(str(kw))}
-            </span>
-            """
-            for kw in keywords.get(
-                topic_id,
-                [],
+            .sort_values(
+                ascending=False
             )
+            .items()
         )
 
         representative = (
             topic_df
             .sort_values(
-                [
-                    "score",
-                    "num_comments",
-                ],
+                ["score", "num_comments"],
                 ascending=False,
             )
-            .head(
-                TOP_POSTS_PER_TOPIC
-            )
+            .head(5)
         )
 
-        posts_html = ""
+        rep_html = ""
 
         for _, row in representative.iterrows():
 
             title = html.escape(
-                str(
-                    row.get(
-                        "title",
-                        "",
-                    )
-                )
+                str(row["title"])
             )
 
             url = html.escape(
-                str(
-                    row.get(
-                        "url",
-                        "",
-                    )
-                ),
-                quote=True,
+                str(row["url"])
             )
 
-            posts_html += f"""
-            <div class="post-item">
-                <a
-                    class="post-title"
-                    href="{url}"
-                    target="_blank"
-                >
-                    {title}
-                </a>
+            rep_html += (
+                f"""
+                <li style="margin-bottom:0.7rem;">
+                    <a
+                        href="{url}"
+                        target="_blank"
+                    >
+                        <b>{title}</b>
+                    </a>
 
-                <div class="post-meta">
-                    ↑ {safe_int(row.get("score", 0)):,}
-                    · 💬 {safe_int(row.get("num_comments", 0)):,}
-                </div>
-            </div>
+                    <span>
+                        (
+                        Score: {safe_int(row["score"]):,}
+                        |
+                        Comments: {safe_int(row["num_comments"]):,}
+                        )
+                    </span>
+                </li>
+                """
+            )
+
+        error = item.get(
+            "error"
+        )
+
+        error_html = ""
+
+        if error:
+
+            error_html = f"""
+            <p>
+                <b>AI status:</b>
+                {html.escape(str(error))}
+            </p>
             """
 
         st.markdown(
             f"""
-            <div class="topic-card">
+            <div class="reddit-card">
 
                 <div class="topic-title">
-                    {html.escape(str(name))}
+                    {html.escape(str(ai_name))}
                 </div>
 
-                <div style="
-                    margin-bottom:.45rem;
-                ">
+                <div style="margin-bottom:1rem;">
                     {badges}
                 </div>
 
-                <div class="topic-meta">
-                    {len(topic_df):,} posts
-                    · avg score
-                    {topic_df["score"].mean():,.0f}
-                    · avg comments
-                    {topic_df["num_comments"].mean():,.0f}
-                </div>
+                <p>
+                    <b>Analysis:</b>
+                    {html.escape(str(ai_desc))}
+                </p>
 
-                <div>
-                    {chips}
-                </div>
+                <p>
+                    <b>Reaction Context:</b>
+                    {html.escape(str(ai_reaction))}
+                </p>
 
-                <div class="topic-section-label">
-                    Top posts
-                </div>
+                {error_html}
 
-                {posts_html}
+                <hr/>
+
+                <p>
+                    <b>TOP POSTS IN TOPIC</b>
+                </p>
+
+                <ul
+                    style="
+                        list-style-type:none;
+                        padding-left:0;
+                    "
+                >
+                    {rep_html}
+                </ul>
 
             </div>
             """,
             unsafe_allow_html=True,
         )
-
-        # ----------------------------------------------------
-        # AI INTERPRETATION
-        # ----------------------------------------------------
-
-        if "error" in insight:
-
-            st.caption(
-                "AI interpretation unavailable: "
-                + str(
-                    insight.get(
-                        "error",
-                        "Unknown error",
-                    )
-                )
-            )
-
-        elif insight:
-
-            description = html.escape(
-                str(
-                    insight.get(
-                        "description",
-                        "",
-                    )
-                )
-            )
-
-            reaction = html.escape(
-                str(
-                    insight.get(
-                        "main_reaction",
-                        "",
-                    )
-                )
-            )
-
-            disagreement = html.escape(
-                str(
-                    insight.get(
-                        "disagreement",
-                        "",
-                    )
-                )
-            )
-
-            st.markdown(
-                f"""
-                <div class="ai-card">
-
-                    <div class="ai-label">
-                        GPT-OSS interpretation
-                    </div>
-
-                    <div style="
-                        margin-top:.45rem;
-                    ">
-                        <b>What this is about:</b>
-                        {description}
-                    </div>
-
-                    <div style="
-                        margin-top:.55rem;
-                    ">
-                        <b>Main reaction and why:</b>
-                        {reaction}
-                    </div>
-
-                    <div style="
-                        margin-top:.55rem;
-                    ">
-                        <b>Disagreement:</b>
-                        {disagreement}
-                    </div>
-
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            concerns = insight.get(
-                "key_concerns",
-                [],
-            )
-
-            if concerns:
-
-                st.markdown(
-                    "**Key concerns / reasons**"
-                )
-
-                for concern in concerns:
-
-                    st.markdown(
-                        f"- {html.escape(str(concern))}"
-                    )
-
-        st.divider()
 
 
 # ============================================================
@@ -3334,160 +2089,43 @@ with tab2:
 
 with tab3:
 
-    st.subheader(
-        f"Subreddit Review · r/{SUBREDDIT}"
+    st.markdown(
+        '<div class="reddit-card">',
+        unsafe_allow_html=True,
     )
 
-    if (
-        overall_review
-        and "error"
-        not in overall_review
-    ):
+    st.subheader(
+        f"General Consensus: r/{SUBREDDIT}"
+    )
 
-        review_col1, review_col2 = (
-            st.columns(
-                [1.7, 1]
-            )
+    if overall_review:
+
+        st.write(
+            overall_review
         )
-
-        with review_col1:
-
-            st.markdown(
-                '<div class="reddit-card">',
-                unsafe_allow_html=True,
-            )
-
-            st.markdown(
-                "**General consensus**"
-            )
-
-            st.write(
-                overall_review.get(
-                    "consensus",
-                    "",
-                )
-            )
-
-            st.markdown(
-                "**Overall sentiment**"
-            )
-
-            st.write(
-                overall_review.get(
-                    "overall_sentiment",
-                    "",
-                )
-            )
-
-            st.markdown(
-                "</div>",
-                unsafe_allow_html=True,
-            )
-
-        with review_col2:
-
-            st.markdown(
-                '<div class="reddit-card">',
-                unsafe_allow_html=True,
-            )
-
-            st.markdown(
-                "**Notable / niche details**"
-            )
-
-            details = (
-                overall_review.get(
-                    "notable_details",
-                    [],
-                )
-            )
-
-            if details:
-
-                for detail in details:
-
-                    st.markdown(
-                        f"- {html.escape(str(detail))}"
-                    )
-
-            else:
-
-                st.caption(
-                    "No additional details were generated."
-                )
-
-            st.markdown(
-                "</div>",
-                unsafe_allow_html=True,
-            )
 
     else:
 
         st.info(
-            "AI review summary is unavailable. "
-            "Showing the statistical sentiment breakdown instead."
+            "LLM summary is not available."
         )
 
-        if not sentiment.empty:
-
-            st.dataframe(
-                sentiment,
-                hide_index=True,
-                use_container_width=True,
-            )
-
-    # --------------------------------------------------------
-    # SENTIMENT SUMMARY CARD
-    # --------------------------------------------------------
-
-    st.divider()
-
     st.markdown(
-        "**Sentiment breakdown**"
+        "</div>",
+        unsafe_allow_html=True,
     )
 
-    if not sentiment.empty:
-
-        sentiment_display = sentiment.copy()
-
-        sentiment_display[
-            "percentage"
-        ] = sentiment_display[
-            "percentage"
-        ].round(1)
-
-        sentiment_display = (
-            sentiment_display.rename(
-                columns={
-                    "sentiment":
-                        "Sentiment",
-                    "count":
-                        "Posts",
-                    "percentage":
-                        "Percentage",
-                }
-            )
-        )
-
-        st.dataframe(
-            sentiment_display,
-            hide_index=True,
-            use_container_width=True,
-        )
-
-    # --------------------------------------------------------
-    # WORD CLOUD
-    # --------------------------------------------------------
-
-    st.divider()
-
     st.markdown(
-        "**What people are talking about**"
+        '<div class="reddit-card">',
+        unsafe_allow_html=True,
+    )
+
+    st.subheader(
+        "What they are talking about"
     )
 
     st.caption(
-        "Common terms from the analyzed posts after removing "
-        "English and Reddit-specific stopwords."
+        "Common terms after removing standard stopwords."
     )
 
     wc_fig = generate_word_cloud(
@@ -3495,19 +2133,15 @@ with tab3:
     )
 
     if wc_fig is not None:
-
         st.pyplot(
             wc_fig,
-            use_container_width=True,
+            clear_figure=True,
         )
 
-        plt.close(wc_fig)
-
-    else:
-
-        st.caption(
-            "Not enough text to build a word cloud."
-        )
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================
@@ -3516,131 +2150,77 @@ with tab3:
 
 with tab4:
 
+    st.markdown(
+        '<div class="reddit-card">',
+        unsafe_allow_html=True,
+    )
+
     st.subheader(
         "Top Posts Dataset"
     )
 
-    st.caption(
-        "The table contains the high-engagement posts selected "
-        "for NLP analysis."
-    )
-
-    display_df = (
-        analysis_df.copy()
-    )
-
-    display_df["created"] = (
-        pd.to_datetime(
-            display_df[
-                "created_utc"
-            ],
-            unit="s",
-        )
-    )
-
-    display_df = (
-        display_df
-        .sort_values(
-            "score",
-            ascending=False,
-        )
-    )
-
     display_cols = [
-        "title",
         "score",
         "num_comments",
+        "title",
         "sentiment",
-        "topic_name",
-        "created",
+        "topic_id",
         "url",
     ]
 
-    display_cols = [
-        c
-        for c in display_cols
-        if c in display_df.columns
+    available_cols = [
+        c for c in display_cols
+        if c in analysis_df.columns
     ]
 
+    display_df = (
+        analysis_df
+        .sort_values(
+            by="score",
+            ascending=False,
+        )[available_cols]
+        .copy()
+    )
+
     st.dataframe(
-        display_df[
-            display_cols
-        ],
+        display_df,
         use_container_width=True,
-        height=560,
         hide_index=True,
-        column_config={
-            "title":
-                st.column_config.TextColumn(
-                    "Title",
-                    width="large",
-                ),
-            "score":
-                st.column_config.NumberColumn(
-                    "Score",
-                    format="%d",
-                ),
-            "num_comments":
-                st.column_config.NumberColumn(
-                    "Comments",
-                    format="%d",
-                ),
-            "sentiment":
-                st.column_config.TextColumn(
-                    "Sentiment",
-                ),
-            "topic_name":
-                st.column_config.TextColumn(
-                    "Topic",
-                    width="medium",
-                ),
-            "created":
-                st.column_config.DatetimeColumn(
-                    "Created",
-                ),
-            "url":
-                st.column_config.LinkColumn(
-                    "Post",
-                    display_text="Open ↗",
-                ),
-        },
     )
 
-    csv_data = (
-        display_df[
-            display_cols
-        ].to_csv(
-            index=False
-        )
-    )
-
-    st.download_button(
-        "⬇️ Download table as CSV",
-        data=csv_data,
-        file_name=(
-            f"{SUBREDDIT.lower()}"
-            "_reddit_recon.csv"
-        ),
-        mime="text/csv",
-        use_container_width=True,
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True,
     )
 
 
 # ============================================================
-# FOOTER
+# ABOUT
 # ============================================================
 
-st.divider()
+with st.sidebar.expander(
+    "About & Pipeline"
+):
 
-st.caption(
-    f"Reddit Recon · r/{SUBREDDIT} · "
-    f"{SENTIMENT_MODEL} + "
-    f"{EMBEDDING_MODEL} + "
-    f"K-Means + TF-IDF + "
-    f"{LLM_MODEL} via Groq"
-)
+    st.markdown(
+        f"""
+**Current Analysis**
 
-st.caption(
-    "Results describe a high-engagement sample of fetched posts, "
-    "not the entire subreddit population."
-)
+- **Subreddit:** r/{SUBREDDIT}
+- **Days:** {days_back}
+- **Posts fetched:** {posts_to_fetch}
+- **Posts analyzed:** {top_posts}
+
+**Models**
+
+- **Sentiment:** `{SENTIMENT_MODEL}`
+- **Embeddings:** `{EMBEDDING_MODEL}`
+- **AI:** `{LLM_MODEL}`
+
+**Pipeline**
+
+Reddit → Sentiment → Embeddings →
+Clustering → Topic Keywords →
+GPT-OSS Topic Analysis → Community Review
+"""
+    )
