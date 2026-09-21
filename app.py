@@ -22,7 +22,7 @@ from core import (
 
 st.set_page_config(
     page_title="Reddit Recon",
-    page_icon="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+    page_icon="🔍"
     layout="wide",
     initial_sidebar_state="expanded",
 )
