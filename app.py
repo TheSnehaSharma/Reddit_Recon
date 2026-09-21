@@ -110,14 +110,6 @@ def page_header(title, subtitle):
     """)
 
 
-def render_color_key():
-    with card():
-        st.markdown('<div class="section-label">Color Key</div>', unsafe_allow_html=True)
-        sentiment_items = [f'<span class="legend-item"><span class="legend-dot" style="color:{c};">●</span> {html.escape(label)}</span>' for label, c in SENTIMENT_COLORS.items()]
-        emotion_items = [f'<span class="legend-item"><span class="legend-dot" style="color:{c};">●</span> {html.escape(label.capitalize())}</span>' for label, c in EMOTION_COLORS.items()]
-        st.html(f'<div class="legend-row"><strong>Sentiment</strong>{"".join(sentiment_items)}</div><div class="legend-row"><strong>Emotion</strong>{"".join(emotion_items)}</div>')
-
-
 def render_confidence_strip(values, colors, labels, title):
     if not values:
         return
@@ -290,8 +282,6 @@ def generate_word_cloud(df):
 
 
 def render_sidebar():
-    st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="reddit-sidebar-icon"><i class="fa-brands fa-reddit" aria-hidden="true"></i></div>', unsafe_allow_html=True)
     st.sidebar.title("Recon Settings")
     with st.sidebar.form("subreddit_form", clear_on_submit=False):
         subreddit_input = st.text_input("Subreddit", placeholder="e.g. technology, Python, gaming", help="Enter a subreddit without r/")
@@ -300,28 +290,6 @@ def render_sidebar():
         top_posts = st.slider("Posts for NLP", 10, 500, 100, 10)
         submitted = st.form_submit_button("Run Recon", type="primary", use_container_width=True)
     return subreddit_input, days_back, posts_to_fetch, top_posts, submitted
-
-
-def render_about_sidebar(subreddit, days_back, posts_to_fetch, top_posts):
-    with st.sidebar.expander("About & Pipeline"):
-        st.html(f"""
-        <strong>Current Analysis</strong>
-        <ul>
-        <li><strong>Subreddit:</strong> r/{html.escape(subreddit)}</li>
-        <li><strong>Days:</strong> {days_back}</li>
-        <li><strong>Posts fetched:</strong> {posts_to_fetch}</li>
-        <li><strong>Posts analyzed:</strong> {top_posts}</li>
-        </ul>
-        <strong>Models</strong>
-        <ul>
-        <li><strong>Sentiment:</strong> <code>{html.escape(SENTIMENT_MODEL)}</code></li>
-        <li><strong>Emotion:</strong> <code>{html.escape(EMOTION_MODEL)}</code></li>
-        <li><strong>Embeddings:</strong> <code>{html.escape(EMBEDDING_MODEL)}</code></li>
-        <li><strong>AI:</strong> <code>{html.escape(LLM_MODEL)}</code></li>
-        </ul>
-        <strong>Engagement Index</strong><p>Score + (2 × Comments)</p>
-        <strong>Pipeline</strong><p>Reddit → Sentiment → Emotion → Embeddings → Clustering → Topic Keywords → GPT Topic Analysis → Community Review</p>
-        """)
 
 
 def execute_recon(subreddit_input, days_back, posts_to_fetch, top_posts):
@@ -358,10 +326,9 @@ def render_overview(raw_df, analysis_df, best_k, name_map):
     k2.metric("Avg Comments", f"{filtered_df.num_comments.mean():.1f}" if not filtered_df.empty else "0.0")
     k3.metric("Avg Score", f"{filtered_df.score.mean():.1f}" if not filtered_df.empty else "0.0")
     k4.metric("Avg Engagement", f"{filtered_df.engagement.mean():.2f}" if not filtered_df.empty else "0.00")
-    render_color_key()
     c1,c2 = st.columns(2)
-    with c1, card(): render_sentiment_distribution(filtered_df)
-    with c2, card(): render_emotion_distribution(filtered_df)
+    with c1: render_sentiment_distribution(filtered_df)
+    with c2: render_emotion_distribution(filtered_df)
     st.markdown("---"); render_engagement_chart(filtered_df)
     st.markdown("---"); c1,c2 = st.columns(2)
     with c1: render_topic_performance(filtered_df, name_map)
@@ -380,33 +347,29 @@ def render_topics_tab(analysis_df, ai_insights):
         topic_name = item.get("name", f"Topic {topic_id}")
         representative = topic_df.sort_values(["score","num_comments"], ascending=False).head(5)
         rep_html = "".join(f'<li style="margin-bottom:.7rem;"><a class="top-post-link" href="{html.escape(str(row.url))}" target="_blank" rel="noopener noreferrer"><b>{html.escape(str(row.title))}</b></a> <span>(Score: {safe_int(row.score):,} | Comments: {safe_int(row.num_comments):,})</span></li>' for row in representative.itertuples())
-        with card():
-            st.html(f'<div class="topic-title">{html.escape(str(topic_name))}</div>')
-            render_topic_reaction_badges(topic_df)
-            st.markdown(f'**Analysis:** {item.get("description", "")}')
-            st.markdown(f'**Reaction Context:** {item.get("main_reaction", "")}')
-            if item.get("error"): st.html(f'<p><b>AI status:</b> {html.escape(str(item["error"]))}</p>')
-            st.markdown("---"); st.markdown("**TOP POSTS IN TOPIC**")
-            st.html(f'<ul style="list-style-type:none;padding-left:0;">{rep_html}</ul>')
+        st.markdown("---"); st.html(f'<div class="topic-title">{html.escape(str(topic_name))}</div>')
+        render_topic_reaction_badges(topic_df)
+        st.markdown(f'**Analysis:** {item.get("description", "")}')
+        st.markdown(f'**Reaction Context:** {item.get("main_reaction", "")}')
+        if item.get("error"): st.html(f'<p><b>AI status:</b> {html.escape(str(item["error"]))}</p>')
+        st.markdown("---"); st.markdown("**TOP POSTS IN TOPIC**")
+        st.html(f'<ul style="list-style-type:none;padding-left:0;">{rep_html}</ul>')
 
 
 def render_review_tab(subreddit, overall_review, analysis_df):
-    with card():
         st.subheader(f"General Consensus: r/{subreddit}")
         st.write(overall_review) if overall_review else st.info("LLM summary is not available.")
-    with card():
-        st.subheader("What they are talking about")
-        st.caption("Common terms after removing standard stopwords.")
+        st.markdown("---")
+        st.subheader("Commonly Used Words")
         fig = generate_word_cloud(analysis_df)
         if fig is not None: st.pyplot(fig, clear_figure=True)
 
 
 def render_data_tab(analysis_df):
-    with card():
-        st.subheader("Top Posts Dataset")
-        display_cols = ["score","num_comments","title","sentiment","sentiment_confidence","emotion","emotion_confidence","topic_id","engagement","url"] + [f"emotion_{x}" for x in EMOTION_LABELS]
-        available = [c for c in display_cols if c in analysis_df.columns]
-        st.dataframe(analysis_df.sort_values("score", ascending=False)[available], use_container_width=True, hide_index=True)
+    st.subheader("Top Posts Dataset")
+    display_cols = ["score","num_comments","title","sentiment","sentiment_confidence","emotion","emotion_confidence","topic_id","engagement","url"] + [f"emotion_{x}" for x in EMOTION_LABELS]
+    available = [c for c in display_cols if c in analysis_df.columns]
+    st.dataframe(analysis_df.sort_values("score", ascending=False)[available], use_container_width=True, hide_index=True)
 
 
 def main():
@@ -431,7 +394,7 @@ def main():
     name_map = {item.get("topic_id"): item.get("name", f"Topic {item.get('topic_id')}") for item in ai_insights}
     page_header(f"Reddit Recon: r/{subreddit}", f"Analyzed top {len(analysis_df):,} posts.")
     render_about_sidebar(subreddit, days_back, posts_to_fetch, top_posts)
-    tab1,tab2,tab3,tab4 = st.tabs(["Overview","Topics","Review","Data"])
+    tab1,tab2,tab3,tab4 = st.tabs(["Overview","Topics","AI Review","Data"])
     with tab1: render_overview(raw_df, analysis_df, best_k, name_map)
     with tab2: render_topics_tab(analysis_df, ai_insights)
     with tab3: render_review_tab(subreddit, overall_review, analysis_df)
