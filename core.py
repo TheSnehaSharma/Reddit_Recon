@@ -1,10 +1,3 @@
-"""Data acquisition, NLP, clustering and Groq orchestration.
-
-The module deliberately contains no Streamlit UI rendering. Expensive work is
-cached so Streamlit reruns and repeated recon runs do not repeatedly load or
-recompute the same artifacts.
-"""
-
 from __future__ import annotations
 
 import json
@@ -81,8 +74,6 @@ def load_sentiment_model():
     tokenizer = AutoTokenizer.from_pretrained(SENTIMENT_MODEL)
     model = AutoModelForSequenceClassification.from_pretrained(SENTIMENT_MODEL)
     model.eval()
-    # Dynamic int8 quantization targets Linear layers. It is CPU-safe and
-    # substantially lowers resident memory without changing model weights' task.
     if hasattr(torch, "ao"):
         model = torch.ao.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
     return pipeline(
@@ -219,7 +210,6 @@ def analyze_sentiment(df: pd.DataFrame, batch_size: int = DEFAULT_BATCH_SIZE) ->
     result = df.copy()
     result["sentiment"] = [str(p["label"]).lower().strip() for p in predictions]
     result["sentiment_confidence"] = [float(p["score"]) for p in predictions]
-    # Cardiff labels are already negative/neutral/positive.
     return result
 
 
@@ -231,8 +221,7 @@ def analyze_emotions(df: pd.DataFrame, batch_size: int = DEFAULT_BATCH_SIZE) -> 
     emotion_scores = []
     labels = []
     confidences = []
-
-    # Model labels are LABEL_0..LABEL_6. Keep the original dashboard's ontology.
+    
     model_order = ["anger", "disgust", "fear", "joy", "sadness", "surprise", "neutral"]
     for prediction in predictions:
         if isinstance(prediction, dict):
@@ -260,6 +249,7 @@ def analyze_emotions(df: pd.DataFrame, batch_size: int = DEFAULT_BATCH_SIZE) -> 
 
 
 def mean_pool(last_hidden_state, attention_mask):
+    import torch
     mask = attention_mask.unsqueeze(-1).expand(last_hidden_state.size()).float()
     summed = torch.sum(last_hidden_state * mask, dim=1)
     counts = torch.clamp(mask.sum(dim=1), min=1e-9)
@@ -293,7 +283,6 @@ def discover_topics(df: pd.DataFrame):
         result = df.copy(); result["topic_id"] = 0
         return result, pd.DataFrame(), 1
 
-    # Silhouette is O(n²). Sampling keeps CPU/RAM bounded on Streamlit free tier.
     rng = np.random.default_rng(RANDOM_STATE)
     sample_idx = rng.choice(len(embeddings), size=min(len(embeddings), MAX_SILHOUETTE_SAMPLE), replace=False)
     sample = embeddings[sample_idx]
@@ -396,7 +385,6 @@ def _bounded_evidence(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
     raw = json.dumps(evidence, ensure_ascii=False)
     if len(raw) <= MAX_GROQ_EVIDENCE_CHARS:
         return evidence
-    # Keep topic metadata and fewer characters from posts when the context is large.
     compact = []
     for item in evidence:
         clone = dict(item)
@@ -410,11 +398,6 @@ def _bounded_evidence(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 @st.cache_data(show_spinner=False)
 def generate_groq_analysis(evidence: list[dict[str, Any]], api_key_present: bool) -> dict[str, Any]:
-    """One Groq request returns all topic cards and the overall review.
-
-    api_key_present is only a cache discriminator; the actual secret is read at
-    execution time and never embedded in the cached result.
-    """
     fallback_topics = [{
         "topic_id": item["topic_id"], "name": f"Topic {item['topic_id']}",
         "description": "", "main_reaction": "",
