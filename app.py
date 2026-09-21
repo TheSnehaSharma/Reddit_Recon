@@ -30,6 +30,8 @@ st.set_page_config(
 
 def inject_css():
     st.html(f"""
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
     .stApp,.main{{background:{BG};}}
     html,body,[class*="css"],p,span,div,label,li,td,th{{color:#FFFFFF;}}
@@ -40,8 +42,6 @@ def inject_css():
     .reddit-header .reddit-icon{{font-size:58px;margin-right:20px;width:58px;flex-shrink:0;}}
     .reddit-header h1{{margin:0;font-size:2.2rem;font-weight:700;}}
     .reddit-header p{{margin:5px 0 0;font-size:.95rem;color:#A3A3A3!important;}}
-    .reddit-card{{background:{CARD_BG};border:1px solid {BORDER};border-radius:10px;padding:1.25rem;margin-bottom:1rem;}}
-    .reddit-card h2{{margin-top:0;font-size:1.4rem;}}
     .topic-title{{font-weight:700;font-size:1.35rem;margin-bottom:.75rem;}}
     .topic-title::before{{content:"\\25CF";margin-right:10px;color:#FF4500;}}
     .badge{{display:inline-block;padding:.3rem .7rem;border-radius:999px;font-size:.75rem;font-weight:700;margin:0 .5rem .4rem 0;border:1px solid #444;background:#1C1C1C;}}
@@ -74,13 +74,6 @@ def inject_css():
 
 
 inject_css()
-
-
-@contextmanager
-def card():
-    st.html('<div class="reddit-card">')
-    yield
-    st.html('</div>')
 
 
 def style_fig(fig, **overrides):
@@ -321,12 +314,12 @@ def execute_recon(subreddit_input, days_back, posts_to_fetch, top_posts):
 def render_overview(raw_df, analysis_df, best_k, name_map):
     st.subheader("Dashboard Filters")
     filtered_df = apply_dashboard_filters(analysis_df, name_map)
-    k1,k2,k3,k4 = st.columns(4)
+    st.markdown("---"); k1,k2,k3,k4 = st.columns(4)
     k1.metric("Total Posts", f"{len(filtered_df):,}")
     k2.metric("Avg Comments", f"{filtered_df.num_comments.mean():.1f}" if not filtered_df.empty else "0.0")
     k3.metric("Avg Score", f"{filtered_df.score.mean():.1f}" if not filtered_df.empty else "0.0")
     k4.metric("Avg Engagement", f"{filtered_df.engagement.mean():.2f}" if not filtered_df.empty else "0.00")
-    c1,c2 = st.columns(2)
+    st.markdown("---"); c1,c2 = st.columns(2)
     with c1: render_sentiment_distribution(filtered_df)
     with c2: render_emotion_distribution(filtered_df)
     st.markdown("---"); render_engagement_chart(filtered_df)
