@@ -1,12 +1,7 @@
-"""Application configuration. Keep secrets out of source control."""
-
 ARCTIC_URL = "https://arctic-shift.photon-reddit.com/api/posts/search"
 
-# Keep the Groq model exactly as supplied by the original project.
 LLM_MODEL = "openai/gpt-oss-20b"
 
-# Local models: chosen for CPU/RAM efficiency while preserving the dashboard's
-# 3-class sentiment + 7-class emotion contracts.
 SENTIMENT_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 EMOTION_MODEL = "Frankhihi/fast-emotion-classifier"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -19,7 +14,6 @@ MAX_TEXT_CHARS = 1500
 MODEL_MAX_LENGTH = 192
 ROLLING_WINDOW = "1D"
 
-# Free-tier safeguards.
 MAX_SILHOUETTE_SAMPLE = 500
 MIN_CLUSTER_K = 3
 MAX_CLUSTER_K = 6
