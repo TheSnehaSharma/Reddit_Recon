@@ -22,7 +22,7 @@ from core import (
 
 st.set_page_config(
     page_title="Reddit Recon",
-    page_icon="https://www.reddit.com/favicon.ico",
+    page_icon="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -30,8 +30,6 @@ st.set_page_config(
 
 def inject_css():
     st.html(f"""
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
     .stApp,.main{{background:{BG};}}
     html,body,[class*="css"],p,span,div,label,li,td,th{{color:#FFFFFF;}}
@@ -275,6 +273,7 @@ def generate_word_cloud(df):
 
 
 def render_sidebar():
+    st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">', unsafe_allow_html=True)
     st.sidebar.title("Recon Settings")
     with st.sidebar.form("subreddit_form", clear_on_submit=False):
         subreddit_input = st.text_input("Subreddit", placeholder="e.g. technology, Python, gaming", help="Enter a subreddit without r/")
