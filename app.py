@@ -393,7 +393,6 @@ def main():
     subreddit = st.session_state.get("selected_subreddit", subreddit_input)
     name_map = {item.get("topic_id"): item.get("name", f"Topic {item.get('topic_id')}") for item in ai_insights}
     page_header(f"Reddit Recon: r/{subreddit}", f"Analyzed top {len(analysis_df):,} posts.")
-    render_about_sidebar(subreddit, days_back, posts_to_fetch, top_posts)
     tab1,tab2,tab3,tab4 = st.tabs(["Overview","Topics","AI Review","Data"])
     with tab1: render_overview(raw_df, analysis_df, best_k, name_map)
     with tab2: render_topics_tab(analysis_df, ai_insights)
