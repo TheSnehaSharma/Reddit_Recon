@@ -278,7 +278,6 @@ def render_trends(df):
         st.info("No posts match the selected filters.")
         return
     trend = df.copy()
-    # Short time spans would collapse into a single daily point, so bucket by hour.
     span_days = (trend["created_utc"].max() - trend["created_utc"].min()) / 86400
     freq = "1h" if span_days <= 2 else "1D"
     trend["date"] = pd.to_datetime(trend["created_utc"], unit="s", utc=True).dt.floor(freq)
@@ -378,7 +377,7 @@ def render_topic_reaction_badges(topic_df):
             f'<span class="badge" style="border-color:{color};color:{color};">'
             f'Emotion: {html.escape(emotion_label.capitalize())} {emotion_pct:.0f}%</span>'
         )
-    st.html("".join(badges))
+    if badges: st.html("".join(badges))
 
 
 def render_topics_tab(analysis_df, ai_insights):
@@ -425,7 +424,6 @@ def generate_word_cloud(df):
         ).generate(text)
     except ValueError:  # no words left after removing stopwords
         return None
-    # Figure() instead of pyplot: figures created through pyplot are never freed.
     fig = Figure(figsize=(12, 5.5), facecolor=BG)
     ax = fig.add_axes([0, 0, 1, 1])
     ax.imshow(wordcloud, interpolation="bilinear")
